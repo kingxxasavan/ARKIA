@@ -4,7 +4,32 @@
 
 const express = require('express');
 const path    = require('path');
+const fs      = require('fs');
 const app     = express();
+
+// Memory store — a JSON file that auto-creates and persists the user's facts.
+const MEMORY_FILE = process.env.MEMORY_FILE || path.join(__dirname, 'data', 'memory.json');
+
+function readMemory() {
+  try { return JSON.parse(fs.readFileSync(MEMORY_FILE, 'utf8')); }
+  catch { return { version: 1, facts: [], updated: null }; }
+}
+function writeMemory(facts) {
+  const data = { version: 1, facts, updated: new Date().toISOString() };
+  fs.mkdirSync(path.dirname(MEMORY_FILE), { recursive: true });
+  fs.writeFileSync(MEMORY_FILE, JSON.stringify(data, null, 2));
+  return data;
+}
+function cleanFacts(input) {
+  const arr = Array.isArray(input) ? input : Array.isArray(input?.facts) ? input.facts : [];
+  const seen = new Set(), out = [];
+  for (const f of arr) {
+    if (typeof f !== 'string' || !f.trim()) continue;
+    const t = f.trim(), k = t.toLowerCase();
+    if (!seen.has(k)) { seen.add(k); out.push(t); }
+  }
+  return out;
+}
 
 app.use(express.json({ limit: '20mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
@@ -23,6 +48,18 @@ app.get('/api/status', (_req, res) => {
   for (const [id, cfg] of Object.entries(PROVIDERS))
     status[id] = !!(process.env[cfg.keyEnv] || '').trim();
   res.json(status);
+});
+
+// ── Long-term memory  (auto-creates data/memory.json) ──────────────────────
+app.get('/api/memory', (_req, res) => {
+  const data = readMemory();
+  if (!fs.existsSync(MEMORY_FILE)) { try { writeMemory(data.facts); } catch {} }
+  res.json(data);
+});
+
+app.put('/api/memory', (req, res) => {
+  try { res.json(writeMemory(cleanFacts(req.body))); }
+  catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 // ── Helper: stream a fetch response back to the client safely ──────────────

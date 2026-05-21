@@ -566,6 +566,11 @@
           <button class="btn" id="learn-btn" onclick="learnFromConversation(true)">Learn from this chat</button>
           <button class="btn" onclick="clearMemory()">Clear all</button>
         </div>
+        <div class="row-2">
+          <button class="btn" onclick="exportMemory()">Export JSON</button>
+          <button class="btn" onclick="document.getElementById('mem-import').click()">Import JSON</button>
+        </div>
+        <input type="file" id="mem-import" accept="application/json,.json" style="display:none" onchange="importMemoryFile(this)" />
       </div>
 
       <div class="sp-divider"></div>
@@ -727,6 +732,22 @@ const BUILTIN_FEATURES = [
         run(){ const c=loadColl('notes'); if(!c.length) return 'No notes saved.'; return c.map(n=>`• ${n.title}: ${n.content}`).join('\n'); } },
     ]
   },
+  {
+    id:'memory', name:'Memory', icon:'🧠',
+    desc:'Remember durable facts about you and recall them in any chat.',
+    coll:'__memory__',
+    tools:[
+      { name:'memory_remember', description:'Save a durable fact about the user to long-term memory so it is available in future chats.',
+        params:{ properties:{ fact:{type:'string',description:'A concise fact worth remembering long-term'} }, required:['fact'] },
+        run(a){ const f=(a.fact||'').trim(); if(!f) return 'Nothing to remember.'; const mem=loadMemory(); if(mem.some(x=>x.toLowerCase()===f.toLowerCase())) return 'Already remembered that.'; mem.push(f); saveMemory(mem); return 'Remembered: '+f; } },
+      { name:'memory_recall', description:'List everything currently stored in the user\'s long-term memory.',
+        params:{ properties:{}, required:[] },
+        run(){ const mem=loadMemory(); if(!mem.length) return 'Memory is empty.'; return mem.map((f,i)=>`[${i+1}] ${f}`).join('\n'); } },
+      { name:'memory_forget', description:'Remove a remembered fact by its number, as shown by memory_recall.',
+        params:{ properties:{ number:{type:'number',description:'The fact number from memory_recall'} }, required:['number'] },
+        run(a){ const mem=loadMemory(); const i=Math.floor(a.number)-1; if(i<0||i>=mem.length) return 'No fact with that number.'; const [gone]=mem.splice(i,1); saveMemory(mem); return 'Forgot: '+gone; } },
+    ]
+  },
 ];
 
 // Custom (user-created) collection features
@@ -781,7 +802,7 @@ function renderFeatures(){
     const card=document.createElement('div'); card.className='feat-card'+(on?' on':'');
     let dataHtml='';
     if(on){
-      const items=loadColl(f.coll);
+      const items=f.id==='memory'?loadMemory().map(t=>({item:t})):loadColl(f.coll);
       if(!items.length){ dataHtml='<div class="feat-data"><span class="fd-empty">Nothing stored yet.</span></div>'; }
       else {
         const rows=items.slice(0,5).map(i=>{
@@ -831,7 +852,51 @@ function deleteCustomFeature(id){
 //  MEMORY ("learns about you")
 // ════════════════════════════════════════════════
 function loadMemory(){ try{ return JSON.parse(LS.get('aria_memory')||'[]'); }catch{ return []; } }
-function saveMemory(arr){ LS.set('aria_memory',JSON.stringify(arr)); renderMemory(); }
+function saveMemory(arr){ LS.set('aria_memory',JSON.stringify(arr)); renderMemory(); if(featOpen)renderFeatures(); syncMemoryToServer(arr); }
+// Server is the primary store; browser localStorage is the always-available fallback.
+function syncMemoryToServer(arr){
+  if(!SERVER_MODE) return;
+  fetch('/api/memory',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({facts:arr})}).catch(()=>{});
+}
+function mergeFacts(base,incoming){
+  const seen=new Set(base.map(f=>f.toLowerCase())); const out=[...base]; let added=0;
+  (incoming||[]).forEach(f=>{ if(typeof f==='string'&&f.trim()&&!seen.has(f.toLowerCase())){ out.push(f.trim()); seen.add(f.toLowerCase()); added++; } });
+  return {out,added};
+}
+function loadMemoryFromServer(){
+  if(!SERVER_MODE) return;
+  fetch('/api/memory').then(r=>r.json()).then(d=>{
+    const server=Array.isArray(d)?d:(Array.isArray(d.facts)?d.facts:[]);
+    const {out,added}=mergeFacts(loadMemory(),server);
+    LS.set('aria_memory',JSON.stringify(out)); renderMemory(); if(featOpen)renderFeatures();
+    if(added) syncMemoryToServer(out); // push any local-only facts up so the file stays authoritative
+  }).catch(()=>{});
+}
+function exportMemory(){
+  const data={ version:1, app:'ARIA', exported:new Date().toISOString(), facts:loadMemory() };
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=url; a.download='aria-memory-'+todayStr()+'.json';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+  showToast('Memory exported.', false);
+}
+function importMemoryFile(input){
+  const file=input.files&&input.files[0]; if(!file){ return; }
+  const reader=new FileReader();
+  reader.onload=()=>{
+    try{
+      const parsed=JSON.parse(reader.result);
+      const incoming=Array.isArray(parsed)?parsed:(Array.isArray(parsed.facts)?parsed.facts:null);
+      if(!incoming) throw new Error('no "facts" array found');
+      const {out,added}=mergeFacts(loadMemory(),incoming);
+      saveMemory(out);
+      showToast(added?('Imported '+added+' fact'+(added>1?'s':'')+'.'):'Nothing new to import.', false);
+    }catch(e){ showToast('Import failed: '+(e.message||e)); }
+    input.value='';
+  };
+  reader.readAsText(file);
+}
 function renderMemory(){
   const el=document.getElementById('mem-list'); if(!el) return;
   const mem=loadMemory(); el.innerHTML='';
@@ -950,6 +1015,7 @@ function buildWelcome(){
         `<span style="padding:2px 7px;border-radius:20px;background:${ok?'rgba(74,180,100,0.12)':'rgba(180,74,74,0.12)'};border:1px solid ${ok?'rgba(74,180,100,0.25)':'rgba(180,74,74,0.25)'};color:${ok?'var(--green)':'#b05050'}">${ok?'✓':'✗'} ${labels[id]||id}</span>`
       ).join('');
     }).catch(()=>{});
+    loadMemoryFromServer();
   }
 
   // Anthropic key (local mode only)
