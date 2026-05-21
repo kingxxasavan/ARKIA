@@ -169,8 +169,8 @@ function errPage(title, msg) {
 }
 
 // ── Start ──────────────────────────────────────────────────────────────────
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`ARIA running on port ${PORT}`);
   for (const [id, cfg] of Object.entries(PROVIDERS))
     console.log(`  ${(process.env[cfg.keyEnv]||'').trim() ? '✓' : '✗'} ${id.padEnd(12)} (${cfg.keyEnv})`);

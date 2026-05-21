@@ -1,4 +1,6 @@
 modules = ["web", "nodejs-20"]
+run = "npm install && node server.js"
+
 [agent]
 expertMode = true
 stack = "BEST_EFFORT_FALLBACK"
@@ -24,7 +26,7 @@ author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "node server.js"
+args = "npm install && node server.js"
 waitForPort = 5000
 
 [workflows.workflow.metadata]
@@ -36,4 +38,4 @@ externalPort = 80
 
 [deployment]
 deploymentTarget = "autoscale"
-run = ["node", "server.js"]
+run = ["sh", "-c", "npm install && node server.js"]

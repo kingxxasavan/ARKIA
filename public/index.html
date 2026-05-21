@@ -1095,7 +1095,7 @@ function openAICompatTarget(){
   if(SERVER_MODE){
     // All calls go to our own server proxy — no keys or CORS issues
     const prov = provider==='openai' ? 'openai' : provider==='openrouter' ? 'openrouter' : 'ollama';
-    return { base:`/api/${prov}`, headers:{'Content-Type':'application/json'}, proxy:false };
+    return { base:`/api/${prov}/v1`, headers:{'Content-Type':'application/json'}, proxy:false };
   }
   // ── Local (file://) mode — direct API calls with keys from localStorage ──
   if(provider==='openai'){

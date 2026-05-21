@@ -28,7 +28,7 @@ git clone <this-repo>
 cd aria
 cp .env.example .env        # fill in your keys
 npm install
-node server.js              # open http://localhost:3000
+node server.js              # open http://localhost:5000
 ```
 
 Or just open `public/index.html` directly in your browser — it works as a plain HTML file too (keys stored in browser localStorage, direct API calls).
