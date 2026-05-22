@@ -62,6 +62,71 @@ app.put('/api/memory', (req, res) => {
   catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36';
+
+// ── Image search (DuckDuckGo) ──────────────────────────────────────────────
+app.get('/api/images', async (req, res) => {
+  const q = (req.query.q || '').trim();
+  if (!q) return res.json({ results: [] });
+  try {
+    const seed = await fetch('https://duckduckgo.com/?q=' + encodeURIComponent(q) + '&iax=images&ia=images',
+      { headers: { 'User-Agent': UA }, signal: AbortSignal.timeout(12000) });
+    const html = await seed.text();
+    const m = html.match(/vqd=["']?([-\d]+)["']?/);
+    if (!m) return res.json({ results: [] });
+    const api = `https://duckduckgo.com/i.js?l=us-en&o=json&q=${encodeURIComponent(q)}&vqd=${m[1]}&f=,,,&p=1`;
+    const r = await fetch(api, { headers: { 'User-Agent': UA, 'Referer': 'https://duckduckgo.com/', 'Accept': 'application/json' }, signal: AbortSignal.timeout(12000) });
+    const data = await r.json();
+    const results = (data.results || []).slice(0, 60).map(x => ({
+      image: x.image, thumbnail: x.thumbnail, title: x.title || '', source: x.url || '',
+      width: x.width, height: x.height,
+    }));
+    res.json({ results });
+  } catch (e) { res.json({ results: [], error: e.message }); }
+});
+
+// ── Video search (YouTube) ─────────────────────────────────────────────────
+app.get('/api/videos', async (req, res) => {
+  const q = (req.query.q || '').trim();
+  if (!q) return res.json({ results: [] });
+  try {
+    const r = await fetch('https://www.youtube.com/results?search_query=' + encodeURIComponent(q),
+      { headers: { 'User-Agent': UA, 'Accept-Language': 'en-US,en;q=0.9' }, signal: AbortSignal.timeout(12000) });
+    const html = await r.text();
+    const seen = new Set(), results = [];
+    const m = html.match(/ytInitialData\s*=\s*(\{.+?\});<\/script>/s);
+    if (m) {
+      try {
+        (function walk(o) {
+          if (!o || typeof o !== 'object' || results.length >= 40) return;
+          if (o.videoRenderer && o.videoRenderer.videoId) {
+            const v = o.videoRenderer, id = v.videoId;
+            if (!seen.has(id)) {
+              seen.add(id);
+              results.push({
+                id,
+                title: (v.title && (v.title.runs?.[0]?.text || v.title.simpleText)) || '',
+                channel: (v.ownerText && v.ownerText.runs?.[0]?.text) || '',
+                length: (v.lengthText && v.lengthText.simpleText) || '',
+                thumbnail: `https://i.ytimg.com/vi/${id}/hqdefault.jpg`,
+              });
+            }
+          }
+          for (const k in o) walk(o[k]);
+        })(JSON.parse(m[1]));
+      } catch {}
+    }
+    if (!results.length) {
+      const re = /"videoId":"([\w-]{11})"/g; let mm;
+      while ((mm = re.exec(html)) && results.length < 30) {
+        if (!seen.has(mm[1])) { seen.add(mm[1]); results.push({ id: mm[1], title: '', channel: '', length: '', thumbnail: `https://i.ytimg.com/vi/${mm[1]}/hqdefault.jpg` }); }
+      }
+    }
+    res.json({ results: results.slice(0, 40) });
+  } catch (e) { res.json({ results: [], error: e.message }); }
+});
+
+
 // ── Helper: stream a fetch response back to the client safely ──────────────
 async function pipeResponse(upstream, res, req) {
   res.on('error', () => {});          // prevent unhandled error events on res
