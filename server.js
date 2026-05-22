@@ -5,7 +5,16 @@
 const express = require('express');
 const path    = require('path');
 const fs      = require('fs');
+const http    = require('http');
+const { createBareServer } = require('@tomphttp/bare-server-node');
 const app     = express();
+
+// Ultraviolet proxy engine — the service-worker-based browser engine that
+// lets the in-app browser open full sites (YouTube, TikTok, etc).
+const bareServer = createBareServer('/bare/');
+const UV_DIST = path.join(__dirname, 'node_modules/@titaniumnetwork-dev/ultraviolet/dist');
+const BAREMUX = path.join(__dirname, 'node_modules/@mercuryworkshop/bare-mux/dist');
+const BAREMOD = path.join(__dirname, 'node_modules/@mercuryworkshop/bare-as-module3/dist');
 
 // Memory store — a JSON file that auto-creates and persists the user's facts.
 const MEMORY_FILE = process.env.MEMORY_FILE || path.join(__dirname, 'data', 'memory.json');
@@ -33,6 +42,27 @@ function cleanFacts(input) {
 
 app.use(express.json({ limit: '20mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
+
+// Custom Ultraviolet config (asset paths live under /uv/)
+app.get('/uv/uv.config.js', (_req, res) => {
+  res.type('application/javascript').send(
+    "self.__uv$config={prefix:'/service/',encodeUrl:Ultraviolet.codec.xor.encode,decodeUrl:Ultraviolet.codec.xor.decode,handler:'/uv/uv.handler.js',client:'/uv/uv.client.js',bundle:'/uv/uv.bundle.js',config:'/uv/uv.config.js',sw:'/uv/uv.sw.js'};"
+  );
+});
+// Service worker that claims clients immediately so the first navigation is proxied.
+app.get('/uv/sw.js', (_req, res) => {
+  res.set('Service-Worker-Allowed', '/');
+  res.type('application/javascript').send(
+    "importScripts('/uv/uv.bundle.js');importScripts('/uv/uv.config.js');importScripts('/uv/uv.sw.js');" +
+    "const uv=new UVServiceWorker();" +
+    "self.addEventListener('install',()=>self.skipWaiting());" +
+    "self.addEventListener('activate',e=>e.waitUntil(self.clients.claim()));" +
+    "self.addEventListener('fetch',e=>{e.respondWith((async()=>{try{if(uv.route(e))return await uv.fetch(e);}catch(err){return new Response('Proxy error: '+(err&&err.message||err),{status:500});}return fetch(e.request);})());});"
+  );
+});
+app.use('/uv', express.static(UV_DIST, { setHeaders: (res, p) => { if (p.endsWith('sw.js')) res.set('Service-Worker-Allowed', '/'); } }));
+app.use('/baremux', express.static(BAREMUX));
+app.use('/baremod', express.static(BAREMOD));
 
 // ── Provider registry ──────────────────────────────────────────────────────
 const PROVIDERS = {
@@ -298,7 +328,16 @@ function errPage(title, msg) {
 
 // ── Start ──────────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, '0.0.0.0', () => {
+const httpServer = http.createServer();
+httpServer.on('request', (req, res) => {
+  if (bareServer.shouldRoute(req)) bareServer.routeRequest(req, res);
+  else app(req, res);
+});
+httpServer.on('upgrade', (req, socket, head) => {
+  if (bareServer.shouldRoute(req)) bareServer.routeUpgrade(req, socket, head);
+  else socket.end();
+});
+httpServer.listen(PORT, '0.0.0.0', () => {
   console.log(`ARIA running on port ${PORT}`);
   for (const [id, cfg] of Object.entries(PROVIDERS))
     console.log(`  ${(process.env[cfg.keyEnv]||'').trim() ? '✓' : '✗'} ${id.padEnd(12)} (${cfg.keyEnv})`);

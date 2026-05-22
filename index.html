@@ -656,8 +656,8 @@
   <!-- ── Built-in Browser Panel ── -->
   <div id="browser-col">
     <div class="br-toolbar">
-      <button class="br-nav" id="br-back"    onclick="brBack()"    title="Back"    disabled>&#8592;</button>
-      <button class="br-nav" id="br-fwd"     onclick="brForward()" title="Forward" disabled>&#8594;</button>
+      <button class="br-nav" id="br-back"    onclick="brBack()"    title="Back">&#8592;</button>
+      <button class="br-nav" id="br-fwd"     onclick="brForward()" title="Forward">&#8594;</button>
       <button class="br-nav" id="br-refresh" onclick="brRefresh()" title="Refresh">&#8635;</button>
       <div class="br-addr-wrap">
         <input id="br-addr" class="br-addr" type="text" placeholder="Search or enter a web address…" onkeydown="if(event.key==='Enter')brGo(this.value)" />
@@ -672,7 +672,7 @@
       <button class="br-mode"    id="brm-videos" onclick="brSetMode('videos')">Videos</button>
     </div>
     <div class="br-stage">
-      <iframe id="browser-iframe" allow="autoplay; encrypted-media; picture-in-picture; fullscreen; clipboard-write" allowfullscreen sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-presentation allow-top-navigation-by-user-activation"></iframe>
+      <iframe id="browser-iframe" allow="autoplay; encrypted-media; picture-in-picture; fullscreen; clipboard-write" allowfullscreen sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-modals allow-presentation allow-downloads"></iframe>
       <div id="br-results" class="br-results"></div>
     </div>
   </div>
@@ -1519,7 +1519,7 @@ async function ddgSearch(query){
 // ════════════════════════════════════════════════
 //  BUILT-IN BROWSER
 // ════════════════════════════════════════════════
-let brOpen=false, brHistory=[], brPos=-1, brMode='web', brFs=false, brImgResults=[], brVidResults=[];
+let brOpen=false, brMode='web', brFs=false, brImgResults=[], brVidResults=[], _uvReady=null;
 
 function brFrame(){ return document.getElementById('browser-iframe'); }
 function mediaPage(inner){ return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>html,body{margin:0;height:100%}body{display:flex;align-items:center;justify-content:center;background:#1a1714;font-family:system-ui,sans-serif;padding:16px;box-sizing:border-box}</style></head><body>${inner}</body></html>`; }
@@ -1528,7 +1528,7 @@ function toggleBrowser(){
   brOpen=!brOpen;
   document.getElementById('browser-col').classList.toggle('open',brOpen);
   document.getElementById('br-toggle').classList.toggle('on',brOpen);
-  if(brOpen && brPos<0) brHome();
+  if(brOpen && !brFrame().src && !brFrame().srcdoc){ brHome(); if(SERVER_MODE) brEnsureUV().catch(()=>{}); }
 }
 function brFullscreen(){
   brFs=!brFs;
@@ -1537,20 +1537,37 @@ function brFullscreen(){
 }
 function brHome(){
   const f=brFrame(); f.removeAttribute('src');
-  f.srcdoc=mediaPage('<div style="text-align:center"><div style="font-size:34px;margin-bottom:12px">🌐</div><div style="font-size:15px;color:#f0e9df;margin-bottom:8px">In-app browser</div><div style="font-size:12px;color:#b3a99c;max-width:300px;line-height:1.6">Use the tabs to search the web, images, or videos — or type any address. YouTube and Vimeo play right here.</div></div>');
+  f.srcdoc=mediaPage('<div style="text-align:center"><div style="font-size:34px;margin-bottom:12px">🌐</div><div style="font-size:15px;color:#f0e9df;margin-bottom:8px">In-app browser</div><div style="font-size:12px;color:#b3a99c;max-width:300px;line-height:1.6">Search the web, images, or videos with the tabs above — or type any address (YouTube, TikTok, anything). It opens right here.</div></div>');
   brShowResults(false);
 }
 function brShowNoServer(){
   const f=brFrame(); f.removeAttribute('src');
-  f.srcdoc=mediaPage('<div style="text-align:center;max-width:340px"><div style="font-size:30px;margin-bottom:10px">🌐</div><div style="font-size:14px;color:#f0e9df;margin-bottom:6px">Browsing needs the server</div><div style="font-size:12px;color:#b3a99c;line-height:1.6">Open ARIA from its hosted (Replit) URL to browse pages and search. Video links still play here directly.</div></div>');
+  f.srcdoc=mediaPage('<div style="text-align:center;max-width:340px"><div style="font-size:30px;margin-bottom:10px">🌐</div><div style="font-size:14px;color:#f0e9df;margin-bottom:6px">Browsing needs the server</div><div style="font-size:12px;color:#b3a99c;line-height:1.6">Open ARIA from its hosted (Replit) URL — the in-app browser runs through the server.</div></div>');
   brShowResults(false);
+}
+
+// ── Ultraviolet proxy engine (loaded on demand) ──
+function brLoadScript(src){ return new Promise((res,rej)=>{ const s=document.createElement('script'); s.src=src; s.onload=res; s.onerror=()=>rej(new Error('Failed to load '+src)); document.head.appendChild(s); }); }
+function brEnsureUV(){
+  if(_uvReady) return _uvReady;
+  _uvReady=(async()=>{
+    await brLoadScript('/uv/uv.bundle.js');
+    await brLoadScript('/uv/uv.config.js');
+    const { BareMuxConnection } = await import('/baremux/index.mjs');
+    const conn=new BareMuxConnection('/baremux/worker.js');
+    let cur=''; try{ cur=await conn.getTransport(); }catch(e){}
+    if(cur!=='/baremod/index.mjs') await conn.setTransport('/baremod/index.mjs',[{bare:'/bare/'}]);
+    if(!('serviceWorker' in navigator)) throw new Error('Service workers unavailable — open ARIA over HTTPS.');
+    const reg=await navigator.serviceWorker.register('/uv/sw.js',{scope:'/service/'});
+    await new Promise(r=>{ const w=reg.active||reg.waiting||reg.installing; if(reg.active) return r(); if(!w) return r(); w.addEventListener('statechange',()=>{ if(w.state==='activated') r(); }); });
+  })().catch(err=>{ _uvReady=null; throw err; });
+  return _uvReady;
 }
 
 function brSetMode(m){
   brMode=m;
   ['web','images','videos'].forEach(x=>{ const b=document.getElementById('brm-'+x); if(b) b.classList.toggle('on',x===m); });
 }
-
 function brShowResults(show){
   const el=document.getElementById('br-results'); const f=brFrame();
   if(el) el.classList.toggle('show',show);
@@ -1558,7 +1575,7 @@ function brShowResults(show){
 }
 function brResultsMsg(m){ const el=document.getElementById('br-results'); if(el){ el.innerHTML='<div class="br-msg">'+esc(m)+'</div>'; } brShowResults(true); }
 
-// Map known media links to an inline player; null = browse as a normal page.
+// Known media links get an inline player; everything else is browsed via the proxy.
 function mediaEmbed(u){
   try{
     const url=new URL(u, location.href);
@@ -1581,28 +1598,34 @@ function brNavigate(url){
   if(!url) return;
   if(/^\/\//.test(url)) url='https:'+url;
   if(!/^https?:\/\//i.test(url)) url='https://'+url;
-  brHistory=brHistory.slice(0,brPos+1); brHistory.push(url); brPos=brHistory.length-1;
   brLoad(url);
 }
-
 function brLoad(url){
   if(!url) return;
-  const f=brFrame();
-  const addr=document.getElementById('br-addr'); if(addr) addr.value=url;
-  const loading=document.getElementById('br-loading'); loading.className='br-loading active';
-  f.onload=()=>{ loading.className='br-loading done'; setTimeout(()=>loading.className='br-loading',500); };
   brShowResults(false);
+  const f=brFrame(); const addr=document.getElementById('br-addr'); if(addr) addr.value=url;
   const m=mediaEmbed(url);
   if(m){
     if(m.kind==='frame'){ f.removeAttribute('srcdoc'); f.src=m.src; }
     else if(m.kind==='video'){ f.removeAttribute('src'); f.srcdoc=mediaPage('<video src="'+esc(m.src)+'" controls autoplay playsinline style="max-width:100%;max-height:100%"></video>'); }
     else { f.removeAttribute('src'); f.srcdoc=mediaPage('<img src="'+esc(m.src)+'" style="max-width:100%;max-height:100%;object-fit:contain">'); }
-  } else if(!SERVER_MODE){
-    brShowNoServer(); loading.className='br-loading';
-  } else {
-    f.removeAttribute('srcdoc'); f.src='/browse/'+url;
+    return;
   }
-  brUpdateNav();
+  brProxyLoad(url);
+}
+async function brProxyLoad(url){
+  const f=brFrame(); const loading=document.getElementById('br-loading');
+  if(!SERVER_MODE){ brShowNoServer(); return; }
+  loading.className='br-loading active';
+  try{
+    await brEnsureUV();
+    f.removeAttribute('srcdoc');
+    f.src=__uv$config.prefix+__uv$config.encodeUrl(url);
+  }catch(e){
+    // Fall back to the lightweight static proxy (renders simple pages)
+    try{ f.removeAttribute('srcdoc'); f.src='/browse/'+url; }
+    catch(_){ loading.className='br-loading'; brResultsMsg('Could not start the browser engine: '+(e.message||e)); }
+  }
 }
 
 function brGo(val){
@@ -1611,7 +1634,7 @@ function brGo(val){
   if(looksUrl){ if(brMode!=='web') brSetMode('web'); brNavigate(val); return; }
   if(brMode==='images') return brSearchImages(val);
   if(brMode==='videos') return brSearchVideos(val);
-  brNavigate('https://html.duckduckgo.com/html/?q='+encodeURIComponent(val));
+  brNavigate('https://duckduckgo.com/?q='+encodeURIComponent(val));
 }
 
 async function brSearchImages(q){
@@ -1630,7 +1653,7 @@ async function brSearchImages(q){
     brShowResults(true);
   }catch(e){ brResultsMsg('Image search failed.'); }
 }
-function brOpenImage(i){ const x=brImgResults[i]; if(x) brNavigate(x.image||x.thumbnail); }
+function brOpenImage(i){ const x=brImgResults[i]; if(!x) return; const u=x.image||x.thumbnail; const f=brFrame(); brShowResults(false); f.removeAttribute('src'); f.srcdoc=mediaPage('<img src="'+esc(u)+'" style="max-width:100%;max-height:100%;object-fit:contain">'); const addr=document.getElementById('br-addr'); if(addr) addr.value=u; }
 
 async function brSearchVideos(q){
   brSetMode('videos');
@@ -1650,38 +1673,34 @@ async function brSearchVideos(q){
 }
 function brPlayVideo(i){ const x=brVidResults[i]; if(x) brNavigate('https://www.youtube.com/watch?v='+x.id); }
 
-function brBack(){ if(brPos>0){ brPos--; brLoad(brHistory[brPos]); } }
-function brForward(){ if(brPos<brHistory.length-1){ brPos++; brLoad(brHistory[brPos]); } }
-function brRefresh(){ if(brHistory[brPos]) brLoad(brHistory[brPos]); }
-function brUpdateNav(){
-  const back=document.getElementById('br-back'), fwd=document.getElementById('br-fwd');
-  if(back) back.disabled = brPos<=0;
-  if(fwd)  fwd.disabled  = brPos>=brHistory.length-1;
-}
+function brBack(){ try{ brFrame().contentWindow.history.back(); }catch(e){} }
+function brForward(){ try{ brFrame().contentWindow.history.forward(); }catch(e){} }
+function brRefresh(){ try{ brFrame().contentWindow.location.reload(); }catch(e){} }
 
 function brSendToARIA(){
-  const f=brFrame();
-  try{ f.contentWindow.postMessage({type:'getContent'},'*'); showToast('Extracting page…', false); }
-  catch(e){ showToast('Could not read this page.'); }
+  try{
+    const doc=brFrame().contentWindow.document;
+    const title=doc.title||'';
+    const text=(doc.body?doc.body.innerText:'').replace(/\s+/g,' ').trim().slice(0,8000);
+    if(!text){ showToast('Nothing to read on this page yet.'); return; }
+    const inp=document.getElementById('msg-in'); const snippet=`[Page: ${title}]\n\n${text}`;
+    inp.value=inp.value ? inp.value+'\n\n'+snippet : snippet; resize(inp); inp.focus();
+    showToast('Page added to your message — edit then send.', false);
+  }catch(e){ showToast('Could not read this page (it may still be loading).'); }
 }
 
-// Messages from the proxied page (navigation, title, extracted text)
-window.addEventListener('message', e=>{
-  if(!e.data||typeof e.data!=='object') return;
-  const{type,url,title,text}=e.data;
-  if(type==='navigate' && url){ brNavigate(url); }
-  else if(type==='browsed'){
-    const addr=document.getElementById('br-addr'); if(addr&&url) addr.value=url;
-    if(url && brHistory[brPos]!==url){ brHistory=brHistory.slice(0,brPos+1); brHistory.push(url); brPos=brHistory.length-1; }
-    brUpdateNav();
-  }
-  else if(type==='pageContent' && text){
-    const clean=text.replace(/\s+/g,' ').trim();
-    const snippet=`[Page: ${title||url}]\n\n${clean}`;
-    const inp=document.getElementById('msg-in');
-    if(inp){ inp.value=inp.value ? inp.value+'\n\n'+snippet : snippet; resize(inp); inp.focus(); showToast('Page added to your message — edit then send.', false); }
-  }
-});
+// Update the loading bar and the address bar after each in-frame navigation.
+function brOnFrameLoad(){
+  const l=document.getElementById('br-loading'); if(l){ l.className='br-loading done'; setTimeout(()=>l.className='br-loading',500); }
+  try{
+    const loc=brFrame().contentWindow.location;
+    if(window.__uv$config && loc.pathname.indexOf(__uv$config.prefix)===0){
+      const real=__uv$config.decodeUrl(loc.pathname.slice(__uv$config.prefix.length));
+      const addr=document.getElementById('br-addr'); if(real&&addr) addr.value=real;
+    }
+  }catch(e){}
+}
+(function(){ const f=document.getElementById('browser-iframe'); if(f) f.addEventListener('load', brOnFrameLoad); })();
 
 document.addEventListener('keydown', e=>{ if(e.key==='Escape'&&brFs) brFullscreen(); });
 
