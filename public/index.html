@@ -594,12 +594,12 @@
         </div>
 
         <div class="sg-sublabel">What ARIA should remember</div>
-        <div class="mem-list" id="mem-list"></div>
         <textarea id="mem-input" class="key-input mem-big" rows="2" placeholder="Add something ARIA should remember…" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();addMemoryFact();}"></textarea>
         <div class="row-2">
           <button class="btn primary" id="mem-add-btn" onclick="addMemoryFact()">Save</button>
           <button class="btn" onclick="clearMemory()">Clear all</button>
         </div>
+        <div class="mem-list" id="mem-list" style="margin-top:8px"></div>
 
         <div class="sg-sublabel">What ARIA has learned about you</div>
         <div class="sg-desc">ARIA adds these automatically from your chats — remove anything that's off.</div>
@@ -1071,7 +1071,7 @@ window.onAriaUser=function(user){
 function renderMemory(){
   const el=document.getElementById('mem-list'); if(!el) return;
   const mem=loadMemory(); el.innerHTML='';
-  if(!mem.length){ el.innerHTML='<div class="mem-empty">Nothing yet — add something above.</div>'; return; }
+  if(!mem.length){ el.innerHTML='<div class="mem-empty">Saved notes will appear here.</div>'; return; }
   mem.forEach((fact,i)=>{
     const row=document.createElement('div'); row.className='mem-item';
     row.innerHTML=`<div class="mem-dot"></div><textarea class="mem-txt" rows="1" onchange="editMemoryFact(${i},this.value)">${esc(fact)}</textarea><button class="mem-x" onclick="removeMemoryFact(${i})">✕</button>`;
