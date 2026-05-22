@@ -611,6 +611,20 @@
 
       <div class="sp-divider"></div>
 
+      <!-- Saved notes -->
+      <div class="sg">
+        <div class="sg-label">Saved notes</div>
+        <div class="sg-desc">Things to work on later. ARIA can see these and help you pick them back up.</div>
+        <textarea id="note-input" class="key-input mem-big" rows="2" placeholder="Add a note to come back to later…" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();addNote();}"></textarea>
+        <div class="row-2">
+          <button class="btn primary" id="note-add-btn" onclick="addNote()">Save</button>
+          <button class="btn" onclick="clearNotes()">Clear all</button>
+        </div>
+        <div class="mem-list" id="note-list" style="margin-top:8px"></div>
+      </div>
+
+      <div class="sp-divider"></div>
+
       <!-- System prompt -->
       <div class="sg">
         <div class="sg-label">System Prompt</div>
@@ -931,12 +945,14 @@ function deleteCustomFeature(id){
 // auto-learned from chats (learned). Both follow the account.
 function loadMemory(){ try{ return JSON.parse(LS.get('aria_memory')||'[]'); }catch{ return []; } }
 function loadLearned(){ try{ return JSON.parse(LS.get('aria_learned')||'[]'); }catch{ return []; } }
+function loadNotes(){ try{ return JSON.parse(LS.get('aria_notes')||'[]'); }catch{ return []; } }
 function saveMemory(arr){ LS.set('aria_memory',JSON.stringify(arr)); renderMemory(); if(featOpen)renderFeatures(); persistMemoryAll(); }
 function saveLearned(arr){ LS.set('aria_learned',JSON.stringify(arr)); renderLearned(); persistMemoryAll(); }
-// Persist both stores to the account (Firestore); localStorage is the offline cache.
+function saveNotes(arr){ LS.set('aria_notes',JSON.stringify(arr)); renderNotes(); persistMemoryAll(); }
+// Persist all stores to the account (Firestore); localStorage is the offline cache.
 function persistMemoryAll(){
   if(window.ARIA_UID && window.ARIA_FB && window.ARIA_FB.configured){
-    window.ARIA_FB.saveMemory(window.ARIA_UID, { facts: loadMemory(), learned: loadLearned() }).catch(()=>{});
+    window.ARIA_FB.saveMemory(window.ARIA_UID, { facts: loadMemory(), learned: loadLearned(), notes: loadNotes() }).catch(()=>{});
   }
 }
 function mergeFacts(base,incoming){
@@ -944,16 +960,17 @@ function mergeFacts(base,incoming){
   (incoming||[]).forEach(f=>{ if(typeof f==='string'&&f.trim()&&!seen.has(f.toLowerCase())){ out.push(f.trim()); seen.add(f.toLowerCase()); added++; } });
   return {out,added};
 }
-// On sign-in, pull this user's saved memory and merge it with anything stored locally.
+// On sign-in, pull this user's saved memory & notes and merge with anything local.
 async function loadUserMemory(uid){
   if(!(window.ARIA_FB && window.ARIA_FB.configured)) return;
   try{
-    const cloud=await window.ARIA_FB.loadMemory(uid); // { facts, learned }
+    const cloud=await window.ARIA_FB.loadMemory(uid); // { facts, learned, notes }
     const m=mergeFacts(loadMemory(), (cloud&&cloud.facts)||[]);
     const l=mergeFacts(loadLearned(), (cloud&&cloud.learned)||[]);
-    LS.set('aria_memory',JSON.stringify(m.out)); LS.set('aria_learned',JSON.stringify(l.out));
-    renderMemory(); renderLearned(); if(featOpen)renderFeatures();
-    if(m.added||l.added) persistMemoryAll();
+    const n=mergeFacts(loadNotes(), (cloud&&cloud.notes)||[]);
+    LS.set('aria_memory',JSON.stringify(m.out)); LS.set('aria_learned',JSON.stringify(l.out)); LS.set('aria_notes',JSON.stringify(n.out));
+    renderMemory(); renderLearned(); renderNotes(); if(featOpen)renderFeatures();
+    if(m.added||l.added||n.added) persistMemoryAll();
   }catch(e){}
 }
 // ════════════════════════════════════════════════
@@ -1073,7 +1090,7 @@ window.onAriaUser=function(user){
 function renderMemory(){
   const el=document.getElementById('mem-list'); if(!el) return;
   const mem=loadMemory(); el.innerHTML='';
-  if(!mem.length){ el.innerHTML='<div class="mem-empty">Saved notes will appear here.</div>'; return; }
+  if(!mem.length){ el.innerHTML='<div class="mem-empty">Things you tell ARIA to remember appear here.</div>'; return; }
   mem.forEach((fact,i)=>{
     const row=document.createElement('div'); row.className='mem-item';
     row.innerHTML=`<div class="mem-dot"></div><textarea class="mem-txt" rows="1" onchange="editMemoryFact(${i},this.value)">${esc(fact)}</textarea><button class="mem-x" onclick="removeMemoryFact(${i})">✕</button>`;
@@ -1107,6 +1124,33 @@ function memoryBlock(){
   const all=[...loadMemory(), ...loadLearned()];
   if(!all.length) return '';
   return '\n\nHere is what you already know about the user (their long-term memory). Use it naturally; do not recite it back unless relevant:\n'+all.map(f=>'- '+f).join('\n');
+}
+
+// ── Saved notes (things to work on later) ──
+function renderNotes(){
+  const el=document.getElementById('note-list'); if(!el) return;
+  const notes=loadNotes(); el.innerHTML='';
+  if(!notes.length){ el.innerHTML='<div class="mem-empty">Notes to come back to appear here.</div>'; return; }
+  notes.forEach((note,i)=>{
+    const row=document.createElement('div'); row.className='mem-item';
+    row.innerHTML=`<div class="mem-dot"></div><textarea class="mem-txt" rows="1" onchange="editNote(${i},this.value)">${esc(note)}</textarea><button class="mem-x" onclick="removeNote(${i})">✕</button>`;
+    el.appendChild(row);
+    const ta=row.querySelector('textarea'); ta.style.height='auto'; ta.style.height=ta.scrollHeight+'px';
+  });
+}
+function addNote(){
+  const inp=document.getElementById('note-input'); const v=inp.value.trim(); if(!v) return;
+  const notes=loadNotes(); notes.push(v); saveNotes(notes); inp.value=''; inp.focus();
+  const btn=document.getElementById('note-add-btn');
+  if(btn){ btn.textContent='Saved ✓'; btn.disabled=true; setTimeout(()=>{ btn.textContent='Save'; btn.disabled=false; }, 1200); }
+}
+function editNote(i,v){ const notes=loadNotes(); if(v.trim()) notes[i]=v.trim(); else notes.splice(i,1); saveNotes(notes); }
+function removeNote(i){ const notes=loadNotes(); notes.splice(i,1); saveNotes(notes); }
+function clearNotes(){ if(confirm('Clear all saved notes?')){ saveNotes([]); } }
+function notesBlock(){
+  const notes=loadNotes();
+  if(!notes.length) return '';
+  return '\n\nThe user keeps a list of notes / things they want to work on later. Bring them up only if relevant or asked:\n'+notes.map(f=>'- '+f).join('\n');
 }
 
 // Ask the active model to extract new durable facts from the conversation
@@ -1252,6 +1296,7 @@ function buildWelcome(){
   setOllamaMode(ollamaMode);
   renderMemory();
   renderLearned();
+  renderNotes();
   renderFeatures();
   renderSidebar();
   const _msgsEl=document.getElementById('messages');
@@ -1534,7 +1579,7 @@ async function send(){
 function systemPrompt(){
   const base=document.getElementById('sys-p').value.trim()||'You are ARIA, a helpful, direct AI assistant. Match reply length to the question; keep simple answers short with no unsolicited follow-ups, and use lists or headings only when the content needs structure.';
   const nameLine = window.ARIA_NAME ? `\nThe user's name is ${window.ARIA_NAME}; address them by name when it feels natural.` : '';
-  return base+nameLine+`\nToday is ${new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}.`+memoryBlock();
+  return base+nameLine+`\nToday is ${new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}.`+memoryBlock()+notesBlock();
 }
 
 // ── Anthropic ──────────────────────────────────
@@ -1729,8 +1774,8 @@ try {
     signInGoogle: () => signInWithPopup(auth, new GoogleAuthProvider()),
     signOut: () => signOut(auth),
     updateName: (name) => updateProfile(auth.currentUser, { displayName: name }),
-    loadMemory: async (uid) => { const s = await getDoc(doc(db, 'memories', uid)); const d = s.exists() ? s.data() : {}; return { facts: d.facts || [], learned: d.learned || [] }; },
-    saveMemory: async (uid, data) => { await setDoc(doc(db, 'memories', uid), { facts: (data && data.facts) || [], learned: (data && data.learned) || [], updated: Date.now() }); },
+    loadMemory: async (uid) => { const s = await getDoc(doc(db, 'memories', uid)); const d = s.exists() ? s.data() : {}; return { facts: d.facts || [], learned: d.learned || [], notes: d.notes || [] }; },
+    saveMemory: async (uid, data) => { await setDoc(doc(db, 'memories', uid), { facts: (data && data.facts) || [], learned: (data && data.learned) || [], notes: (data && data.notes) || [], updated: Date.now() }); },
     loadChats: async (uid) => { const s = await getDoc(doc(db, 'chats', uid)); return s.exists() ? (s.data().convs || []) : []; },
     saveChats: async (uid, convs) => { await setDoc(doc(db, 'chats', uid), { convs, updated: Date.now() }); },
   };
