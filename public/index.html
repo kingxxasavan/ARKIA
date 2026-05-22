@@ -138,6 +138,7 @@
 
     .sg { display: flex; flex-direction: column; gap: 7px; }
     .sg-label { font-size: 11px; font-weight: 600; color: var(--text-2); letter-spacing: 0.05em; text-transform: uppercase; }
+    .sg-sublabel { font-size: 12px; font-weight: 600; color: var(--text-1); margin: 12px 0 4px; }
     .sg-desc { font-size: 11px; color: var(--text-3); line-height: 1.55; }
     .sp-divider { height: 1px; background: var(--border); margin: 0 -20px; }
     code.inl { font-size: 11px; background: var(--bg-card); padding: 1px 4px; border-radius: 3px; }
@@ -581,8 +582,8 @@
 
       <!-- Memory -->
       <div class="sg">
-        <div class="sg-label">Memory — what ARIA knows about you</div>
-        <div class="sg-desc">Saved on this device only. These notes are added to every chat so ARIA remembers you, like ChatGPT and Claude do.</div>
+        <div class="sg-label">Memory</div>
+        <div class="sg-desc">Saved to your account, so ARIA remembers you across devices.</div>
         <div class="tog-row" id="tog-memory" onclick="tog('memory')">
           <div class="tog-left"><span class="tog-icon">🧠</span><span class="tog-lbl">Use memory in chats</span></div>
           <div class="tog-sw"></div>
@@ -591,12 +592,19 @@
           <div class="tog-left"><span class="tog-icon">✨</span><span class="tog-lbl">Auto-learn from conversations</span></div>
           <div class="tog-sw"></div>
         </div>
+
+        <div class="sg-sublabel">What ARIA should remember</div>
         <div class="mem-list" id="mem-list"></div>
         <textarea id="mem-input" class="key-input mem-big" rows="2" placeholder="Add something ARIA should remember…" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();addMemoryFact();}"></textarea>
         <div class="row-2">
           <button class="btn primary" id="mem-add-btn" onclick="addMemoryFact()">Save</button>
           <button class="btn" onclick="clearMemory()">Clear all</button>
         </div>
+
+        <div class="sg-sublabel">What ARIA has learned about you</div>
+        <div class="sg-desc">ARIA adds these automatically from your chats — remove anything that's off.</div>
+        <div class="mem-list" id="learned-list"></div>
+        <div class="row-2"><button class="btn" onclick="clearLearned()">Clear learned</button></div>
       </div>
 
       <div class="sp-divider"></div>
@@ -917,12 +925,16 @@ function deleteCustomFeature(id){
 // ════════════════════════════════════════════════
 //  MEMORY ("learns about you")
 // ════════════════════════════════════════════════
+// Two stores: things the user told ARIA to remember (manual) and things ARIA
+// auto-learned from chats (learned). Both follow the account.
 function loadMemory(){ try{ return JSON.parse(LS.get('aria_memory')||'[]'); }catch{ return []; } }
-function saveMemory(arr){ LS.set('aria_memory',JSON.stringify(arr)); renderMemory(); if(featOpen)renderFeatures(); persistMemory(arr); }
-// When signed in, memory is stored per-user in Firestore; localStorage is the offline cache.
-function persistMemory(arr){
+function loadLearned(){ try{ return JSON.parse(LS.get('aria_learned')||'[]'); }catch{ return []; } }
+function saveMemory(arr){ LS.set('aria_memory',JSON.stringify(arr)); renderMemory(); if(featOpen)renderFeatures(); persistMemoryAll(); }
+function saveLearned(arr){ LS.set('aria_learned',JSON.stringify(arr)); renderLearned(); persistMemoryAll(); }
+// Persist both stores to the account (Firestore); localStorage is the offline cache.
+function persistMemoryAll(){
   if(window.ARIA_UID && window.ARIA_FB && window.ARIA_FB.configured){
-    window.ARIA_FB.saveMemory(window.ARIA_UID, arr).catch(()=>{});
+    window.ARIA_FB.saveMemory(window.ARIA_UID, { facts: loadMemory(), learned: loadLearned() }).catch(()=>{});
   }
 }
 function mergeFacts(base,incoming){
@@ -934,10 +946,12 @@ function mergeFacts(base,incoming){
 async function loadUserMemory(uid){
   if(!(window.ARIA_FB && window.ARIA_FB.configured)) return;
   try{
-    const cloud=await window.ARIA_FB.loadMemory(uid);
-    const {out,added}=mergeFacts(loadMemory(), cloud||[]);
-    LS.set('aria_memory',JSON.stringify(out)); renderMemory(); if(featOpen)renderFeatures();
-    if(added) persistMemory(out);
+    const cloud=await window.ARIA_FB.loadMemory(uid); // { facts, learned }
+    const m=mergeFacts(loadMemory(), (cloud&&cloud.facts)||[]);
+    const l=mergeFacts(loadLearned(), (cloud&&cloud.learned)||[]);
+    LS.set('aria_memory',JSON.stringify(m.out)); LS.set('aria_learned',JSON.stringify(l.out));
+    renderMemory(); renderLearned(); if(featOpen)renderFeatures();
+    if(m.added||l.added) persistMemoryAll();
   }catch(e){}
 }
 // ════════════════════════════════════════════════
@@ -1057,12 +1071,22 @@ window.onAriaUser=function(user){
 function renderMemory(){
   const el=document.getElementById('mem-list'); if(!el) return;
   const mem=loadMemory(); el.innerHTML='';
-  if(!mem.length){ el.innerHTML='<div class="mem-empty">Nothing remembered yet. Add a note or let ARIA learn from your chats.</div>'; return; }
+  if(!mem.length){ el.innerHTML='<div class="mem-empty">Nothing yet — add something above.</div>'; return; }
   mem.forEach((fact,i)=>{
     const row=document.createElement('div'); row.className='mem-item';
     row.innerHTML=`<div class="mem-dot"></div><textarea class="mem-txt" rows="1" onchange="editMemoryFact(${i},this.value)">${esc(fact)}</textarea><button class="mem-x" onclick="removeMemoryFact(${i})">✕</button>`;
     el.appendChild(row);
     const ta=row.querySelector('textarea'); ta.style.height='auto'; ta.style.height=ta.scrollHeight+'px';
+  });
+}
+function renderLearned(){
+  const el=document.getElementById('learned-list'); if(!el) return;
+  const mem=loadLearned(); el.innerHTML='';
+  if(!mem.length){ el.innerHTML='<div class="mem-empty">Nothing learned yet. ARIA adds notes here as you chat.</div>'; return; }
+  mem.forEach((fact,i)=>{
+    const row=document.createElement('div'); row.className='mem-item';
+    row.innerHTML=`<div class="mem-dot"></div><div class="mem-txt" style="padding:1px 0">${esc(fact)}</div><button class="mem-x" onclick="removeLearnedFact(${i})">✕</button>`;
+    el.appendChild(row);
   });
 }
 function addMemoryFact(){
@@ -1073,8 +1097,15 @@ function addMemoryFact(){
 }
 function editMemoryFact(i,v){ const mem=loadMemory(); if(v.trim()) mem[i]=v.trim(); else mem.splice(i,1); saveMemory(mem); }
 function removeMemoryFact(i){ const mem=loadMemory(); mem.splice(i,1); saveMemory(mem); }
-function clearMemory(){ if(confirm('Forget everything ARIA has learned about you?')){ saveMemory([]); } }
-function memoryBlock(){ const mem=loadMemory(); if(!feats.memory||!mem.length) return ''; return '\n\nHere is what you already know about the user (their long-term memory). Use it naturally; do not recite it back unless relevant:\n'+mem.map(f=>'- '+f).join('\n'); }
+function clearMemory(){ if(confirm('Clear everything you told ARIA to remember?')){ saveMemory([]); } }
+function removeLearnedFact(i){ const m=loadLearned(); m.splice(i,1); saveLearned(m); }
+function clearLearned(){ if(confirm('Clear everything ARIA has learned about you?')){ saveLearned([]); } }
+function memoryBlock(){
+  if(!feats.memory) return '';
+  const all=[...loadMemory(), ...loadLearned()];
+  if(!all.length) return '';
+  return '\n\nHere is what you already know about the user (their long-term memory). Use it naturally; do not recite it back unless relevant:\n'+all.map(f=>'- '+f).join('\n');
+}
 
 // Ask the active model to extract new durable facts from the conversation
 async function learnFromConversation(manual){
@@ -1085,8 +1116,8 @@ async function learnFromConversation(manual){
     const c=typeof m.content==='string'?m.content:(Array.isArray(m.content)?m.content.filter(b=>b.type==='text').map(b=>b.text).join(' '):'');
     return (m.role==='user'?'User: ':'Assistant: ')+c;
   }).join('\n');
-  const existing=loadMemory();
-  const prompt=`You maintain a long-term profile of the USER. Read the conversation and pull out only durable facts worth keeping: their preferences, the tasks and projects they are working on, their goals, tools they use, and lasting constraints. Each fact must be one short standalone sentence (e.g. "Working on an app called Vex", "Prefers concise replies without bullet points", "Uses Python for data work").\n\nDo NOT save: answers to one-off questions, anything that only matters for this single chat, generic filler, or anything about the assistant.\n\nReturn ONLY a JSON array of fact strings (max 6 new). If there is nothing durable to save, return [].\n\nAlready stored (skip duplicates or rephrasings of these):\n${existing.map(f=>'- '+f).join('\n')||'(none)'}\n\nConversation:\n${transcript}`;
+  const existing=[...loadMemory(), ...loadLearned()];
+  const prompt=`You maintain a long-term profile of the USER. Read the conversation and pull out only durable facts about the USER worth keeping: their preferences, the tasks and projects they are working on, their goals, tools they use, and lasting constraints. Each fact must be one short standalone sentence (e.g. "Working on an app called Vex", "Prefers concise replies without bullet points", "Uses Python for data work").\n\nDo NOT save: answers to one-off questions, facts about other people or topics they merely asked about, anything that only matters for this single chat, generic filler, or anything about the assistant.\n\nReturn ONLY a JSON array of fact strings (max 6 new). If there is nothing durable to save, return [].\n\nAlready stored (skip duplicates or rephrasings of these):\n${existing.map(f=>'- '+f).join('\n')||'(none)'}\n\nConversation:\n${transcript}`;
   try{
     const raw=await quickComplete(prompt);
     const match=raw.match(/\[[\s\S]*\]/);
@@ -1094,7 +1125,7 @@ async function learnFromConversation(manual){
     facts=facts.filter(f=>typeof f==='string'&&f.trim()).map(f=>f.trim());
     const lower=new Set(existing.map(f=>f.toLowerCase()));
     const fresh=facts.filter(f=>!lower.has(f.toLowerCase()));
-    if(fresh.length){ saveMemory([...existing,...fresh]); if(manual)showToast('Learned '+fresh.length+' new thing'+(fresh.length>1?'s':'')+'.', false); }
+    if(fresh.length){ saveLearned([...loadLearned(),...fresh]); if(manual)showToast('Learned '+fresh.length+' new thing'+(fresh.length>1?'s':'')+'.', false); }
     else if(manual){ showToast('Nothing new to remember.', false); }
   }catch(e){ if(manual)showToast('Could not update memory: '+(e.message||e)); }
   if(manual&&btn){ btn.disabled=false; btn.textContent='Learn from this chat'; }
@@ -1218,6 +1249,7 @@ function buildWelcome(){
   setProvider(provider);
   setOllamaMode(ollamaMode);
   renderMemory();
+  renderLearned();
   renderFeatures();
   renderSidebar();
   const _msgsEl=document.getElementById('messages');
@@ -1695,8 +1727,8 @@ try {
     signInGoogle: () => signInWithPopup(auth, new GoogleAuthProvider()),
     signOut: () => signOut(auth),
     updateName: (name) => updateProfile(auth.currentUser, { displayName: name }),
-    loadMemory: async (uid) => { const s = await getDoc(doc(db, 'memories', uid)); return s.exists() ? (s.data().facts || []) : []; },
-    saveMemory: async (uid, facts) => { await setDoc(doc(db, 'memories', uid), { facts, updated: Date.now() }); },
+    loadMemory: async (uid) => { const s = await getDoc(doc(db, 'memories', uid)); const d = s.exists() ? s.data() : {}; return { facts: d.facts || [], learned: d.learned || [] }; },
+    saveMemory: async (uid, data) => { await setDoc(doc(db, 'memories', uid), { facts: (data && data.facts) || [], learned: (data && data.learned) || [], updated: Date.now() }); },
     loadChats: async (uid) => { const s = await getDoc(doc(db, 'chats', uid)); return s.exists() ? (s.data().convs || []) : []; },
     saveChats: async (uid, convs) => { await setDoc(doc(db, 'chats', uid), { convs, updated: Date.now() }); },
   };
