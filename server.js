@@ -183,83 +183,109 @@ app.all('/api/:provider/*', async (req, res) => {
   }
 });
 
-// ── Built-in browser proxy  /browse?url=... ────────────────────────────────
-app.get('/browse', async (req, res) => {
-  let url = (req.query.url || '').trim();
-  if (!url) return res.status(400).send(errPage('No URL', 'Add ?url=https://example.com'));
+// ── Built-in browser proxy ─────────────────────────────────────────────────
+// Path form  /browse/https://site/page  (preferred — relative URLs resolve
+// against the proxied path) and legacy query form  /browse?url=...
+const RES_SKIP = /^(data:|blob:|javascript:|mailto:|tel:|about:|#|vbscript:)/i;
+
+function browseTarget(req) {
+  if (req.query && req.query.url) return String(req.query.url).trim();
+  const m = req.originalUrl.match(/^\/browse\/(.+)$/);
+  return m ? m[1].trim() : '';
+}
+function P(ref, base) {
+  ref = String(ref == null ? '' : ref).trim();
+  if (!ref || RES_SKIP.test(ref)) return ref;
+  try { return '/browse/' + new URL(ref, base).href; } catch { return ref; }
+}
+function rewriteSrcset(val, base) {
+  return val.split(',').map(part => {
+    const s = part.trim(); if (!s) return '';
+    const i = s.search(/\s/);
+    return i < 0 ? P(s, base) : P(s.slice(0, i), base) + s.slice(i);
+  }).filter(Boolean).join(', ');
+}
+function rewriteCss(css, base) {
+  return String(css)
+    .replace(/url\(\s*(['"]?)([^'")]+)\1\s*\)/gi, (m, q, u) => RES_SKIP.test(u.trim()) ? m : `url(${q}${P(u, base)}${q})`)
+    .replace(/@import\s+(['"])([^'"]+)\1/gi, (m, q, u) => `@import ${q}${P(u, base)}${q}`);
+}
+function rewriteHtml(html, base) {
+  html = String(html)
+    .replace(/<base\b[^>]*>/gi, '')
+    .replace(/\sintegrity\s*=\s*(["'])[^"']*\1/gi, '')
+    .replace(/\s(src|href|poster|action|data-src)\s*=\s*"([^"]*)"/gi, (m, a, v) => ` ${a}="${P(v, base)}"`)
+    .replace(/\s(src|href|poster|action|data-src)\s*=\s*'([^']*)'/gi, (m, a, v) => ` ${a}='${P(v, base)}'`)
+    .replace(/\ssrcset\s*=\s*"([^"]*)"/gi, (m, v) => ` srcset="${rewriteSrcset(v, base)}"`)
+    .replace(/\ssrcset\s*=\s*'([^']*)'/gi, (m, v) => ` srcset='${rewriteSrcset(v, base)}'`)
+    .replace(/url\(\s*(['"]?)([^'")]+)\1\s*\)/gi, (m, q, u) => RES_SKIP.test(u.trim()) ? m : `url(${q}${P(u, base)}${q})`);
+  const inject = helperScript(base);
+  if (/<head[\s>]/i.test(html)) return html.replace(/<head([^>]*)>/i, `<head$1>${inject}`);
+  if (/<html[\s>]/i.test(html)) return html.replace(/<html([^>]*)>/i, `<html$1>${inject}`);
+  return inject + html;
+}
+function helperScript(pageUrl) {
+  const safe = pageUrl.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+  return `<script>(function(){
+  function real(u){var i=u.indexOf('/browse/');return i>=0?u.slice(i+8):u;}
+  function ping(){try{parent.postMessage({type:'browsed',url:'${safe}',title:document.title},'*');}catch(e){}}
+  ping(); document.addEventListener('DOMContentLoaded',ping);
+  document.addEventListener('click',function(e){
+    var a=e.target.closest&&e.target.closest('a'); if(!a||!a.href) return;
+    var raw=a.getAttribute('href')||''; if(/^(javascript:|mailto:|tel:|#)/i.test(raw)) return;
+    e.preventDefault(); parent.postMessage({type:'navigate',url:real(a.href)},'*');
+  },true);
+  document.addEventListener('submit',function(e){
+    var f=e.target; if(((f.method||'get')+'').toLowerCase()==='post') return;
+    e.preventDefault();
+    var act=real(f.action||'${safe}'), qs=new URLSearchParams(new FormData(f)).toString();
+    parent.postMessage({type:'navigate',url:act+(act.indexOf('?')>=0?'&':'?')+qs},'*');
+  },true);
+  window.addEventListener('message',function(e){
+    if(e.data&&e.data.type==='getContent'){
+      parent.postMessage({type:'pageContent',url:'${safe}',title:document.title,text:(document.body?document.body.innerText:'').slice(0,8000)},'*');
+    }
+  });
+})();</script>`;
+}
+
+app.get(/^\/browse(?:\/.*)?$/, async (req, res) => {
+  let url = browseTarget(req);
+  if (!url) return res.status(400).send(errPage('No URL', 'Add a web address to browse.'));
+  if (/^\/\//.test(url)) url = 'https:' + url;
   if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
 
   res.on('error', () => {});
-
   try {
     const upstream = await fetch(url, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,*/*;q=0.8',
+        'User-Agent': UA,
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
         'Accept-Language': 'en-US,en;q=0.9',
       },
       redirect: 'follow',
-      signal: AbortSignal.timeout(15000),
+      signal: AbortSignal.timeout(20000),
     });
 
     const finalUrl = upstream.url || url;
-    const ct       = upstream.headers.get('content-type') || 'text/html';
+    const ct = upstream.headers.get('content-type') || 'text/html';
 
-    // Strip headers that block iframing
     res.removeHeader('x-frame-options');
     res.removeHeader('content-security-policy');
+    res.set('Cache-Control', 'no-cache');
     res.set('Content-Type', ct);
 
     if (ct.includes('text/html')) {
-      const html = await upstream.text();
-      res.send(injectHelpers(html, finalUrl));
+      res.send(rewriteHtml(await upstream.text(), finalUrl));
+    } else if (ct.includes('text/css')) {
+      res.send(rewriteCss(await upstream.text(), finalUrl));
     } else {
-      // Images, CSS, JS etc — stream through
       await pipeResponse(upstream, res, req);
     }
   } catch (err) {
     if (!res.headersSent) res.status(502).send(errPage('Could not load page', err.message));
   }
 });
-
-function injectHelpers(html, finalUrl) {
-  const safe = finalUrl.replace(/'/g, "\\'");
-  const inject = `<base href="${finalUrl}">
-<script>
-(function(){
-  window.parent.postMessage({type:'browsed',url:'${safe}',title:document.title},'*');
-  document.addEventListener('DOMContentLoaded',function(){
-    window.parent.postMessage({type:'browsed',url:'${safe}',title:document.title},'*');
-  });
-  document.addEventListener('click',function(e){
-    var a=e.target.closest('a');
-    if(a&&a.href&&!/^(javascript|mailto|#)/i.test(a.href)){
-      e.preventDefault();
-      window.parent.postMessage({type:'navigate',url:a.href},'*');
-    }
-  },true);
-  document.addEventListener('submit',function(e){
-    var f=e.target;
-    if(f.method.toUpperCase()!=='POST'){
-      e.preventDefault();
-      var url=f.action+'?'+new URLSearchParams(new FormData(f));
-      window.parent.postMessage({type:'navigate',url:url},'*');
-    }
-  },true);
-  window.addEventListener('message',function(e){
-    if(e.data&&e.data.type==='getContent'){
-      window.parent.postMessage({
-        type:'pageContent',url:'${safe}',title:document.title,
-        text:(document.body?document.body.innerText:'').slice(0,8000)
-      },'*');
-    }
-  });
-})();
-</script>`;
-
-  if (/<head[\s>]/i.test(html)) return html.replace(/<head([^>]*)>/i, '<head$1>' + inject);
-  return inject + html;
-}
 
 function errPage(title, msg) {
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>

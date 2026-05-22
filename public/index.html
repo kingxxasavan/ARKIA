@@ -356,10 +356,27 @@
     .br-addr:focus { border-color: var(--accent); }
     .br-send { height: 28px; padding: 0 10px; background: var(--accent-soft); border: 1px solid rgba(204,122,58,0.3); border-radius: 7px; font-family: var(--font-sans); font-size: 11px; font-weight: 600; color: var(--accent); cursor: pointer; white-space: nowrap; transition: all 0.15s; flex-shrink: 0; }
     .br-send:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
-    #browser-iframe { flex: 1; border: none; background: var(--bg); }
+    .br-stage { flex: 1; position: relative; overflow: hidden; background: var(--bg); }
+    #browser-iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: none; background: var(--bg); }
+    .br-results { position: absolute; inset: 0; overflow-y: auto; background: var(--bg); padding: 10px; display: none; }
+    .br-results.show { display: block; }
     .br-loading { position: absolute; bottom: 0; left: 0; height: 2px; background: var(--accent); width: 0; transition: width 0.3s ease; }
     .br-loading.active { width: 70%; }
     .br-loading.done { width: 100%; opacity: 0; transition: width 0.1s, opacity 0.4s 0.1s; }
+    .br-modes { display: flex; gap: 5px; padding: 7px 10px; border-bottom: 1px solid var(--border); background: var(--bg-sidebar); flex-shrink: 0; }
+    .br-mode { flex: 1; padding: 5px 0; font-family: var(--font-sans); font-size: 11px; font-weight: 600; border: 1px solid var(--border); border-radius: 7px; background: none; color: var(--text-3); cursor: pointer; transition: all 0.12s; }
+    .br-mode:hover { border-color: var(--accent); color: var(--accent); }
+    .br-mode.on { background: var(--accent-soft); border-color: rgba(204,122,58,0.3); color: var(--accent); }
+    #browser-col.fullscreen { position: fixed; inset: 0; width: 100vw !important; height: 100vh; z-index: 2000; border-left: none; }
+    .br-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 8px; }
+    .br-grid-v { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+    .br-img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 8px; cursor: pointer; background: var(--bg-card); border: 1px solid var(--border); transition: transform 0.1s; }
+    .br-img:hover { transform: scale(1.03); border-color: var(--accent); }
+    .br-vid { cursor: pointer; border-radius: 8px; overflow: hidden; border: 1px solid var(--border); background: var(--bg-card); }
+    .br-vid:hover { border-color: var(--accent); }
+    .br-vid img { width: 100%; aspect-ratio: 16/9; object-fit: cover; display: block; }
+    .br-vid .t { font-size: 11px; padding: 6px 8px; color: var(--text-2); line-height: 1.35; max-height: 52px; overflow: hidden; }
+    .br-msg { text-align: center; color: var(--text-3); font-size: 13px; padding: 44px 16px; line-height: 1.6; }
     #br-toggle { height: 30px; padding: 0 10px; display: flex; align-items: center; gap: 6px; background: none; border: 1px solid var(--border-md); border-radius: 8px; font-family: var(--font-sans); font-size: 12px; font-weight: 500; color: var(--text-3); cursor: pointer; transition: all 0.15s; white-space: nowrap; }
     #br-toggle:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
     #br-toggle.on { background: var(--accent-soft); border-color: rgba(204,122,58,0.3); color: var(--accent); }
@@ -643,12 +660,21 @@
       <button class="br-nav" id="br-fwd"     onclick="brForward()" title="Forward" disabled>&#8594;</button>
       <button class="br-nav" id="br-refresh" onclick="brRefresh()" title="Refresh">&#8635;</button>
       <div class="br-addr-wrap">
-        <input id="br-addr" class="br-addr" type="text" placeholder="Search or enter URL…" onkeydown="if(event.key==='Enter')brGo(this.value)" />
+        <input id="br-addr" class="br-addr" type="text" placeholder="Search or enter a web address…" onkeydown="if(event.key==='Enter')brGo(this.value)" />
         <div class="br-loading" id="br-loading"></div>
       </div>
-      <button class="br-send" onclick="brSendToARIA()" title="Extract page text and send to ARIA">→ ARIA</button>
+      <button class="br-nav" id="br-fs" onclick="brFullscreen()" title="Fullscreen">&#9974;</button>
+      <button class="br-send" onclick="brSendToARIA()" title="Send page text to ARIA">→ ARIA</button>
     </div>
-    <iframe id="browser-iframe" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-top-navigation-by-user-activation"></iframe>
+    <div class="br-modes">
+      <button class="br-mode on" id="brm-web"    onclick="brSetMode('web')">Web</button>
+      <button class="br-mode"    id="brm-images" onclick="brSetMode('images')">Images</button>
+      <button class="br-mode"    id="brm-videos" onclick="brSetMode('videos')">Videos</button>
+    </div>
+    <div class="br-stage">
+      <iframe id="browser-iframe" allow="autoplay; encrypted-media; picture-in-picture; fullscreen; clipboard-write" allowfullscreen sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-presentation allow-top-navigation-by-user-activation"></iframe>
+      <div id="br-results" class="br-results"></div>
+    </div>
   </div>
 </div>
 
@@ -1493,113 +1519,171 @@ async function ddgSearch(query){
 // ════════════════════════════════════════════════
 //  BUILT-IN BROWSER
 // ════════════════════════════════════════════════
-let brOpen=false, brHistory=[], brPos=-1;
+let brOpen=false, brHistory=[], brPos=-1, brMode='web', brFs=false, brImgResults=[], brVidResults=[];
+
+function brFrame(){ return document.getElementById('browser-iframe'); }
+function mediaPage(inner){ return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>html,body{margin:0;height:100%}body{display:flex;align-items:center;justify-content:center;background:#1a1714;font-family:system-ui,sans-serif;padding:16px;box-sizing:border-box}</style></head><body>${inner}</body></html>`; }
 
 function toggleBrowser(){
   brOpen=!brOpen;
-  const col=document.getElementById('browser-col');
-  const btn=document.getElementById('br-toggle');
-  col.classList.toggle('open',brOpen);
-  btn.classList.toggle('on',brOpen);
-  if(brOpen && brPos<0){
-    // Open to DuckDuckGo on first open
-    if(SERVER_MODE) brNavigate('https://duckduckgo.com');
-    else brShowNoServer();
-  }
+  document.getElementById('browser-col').classList.toggle('open',brOpen);
+  document.getElementById('br-toggle').classList.toggle('on',brOpen);
+  if(brOpen && brPos<0) brHome();
+}
+function brFullscreen(){
+  brFs=!brFs;
+  document.getElementById('browser-col').classList.toggle('fullscreen',brFs);
+  const b=document.getElementById('br-fs'); if(b) b.classList.toggle('on',brFs);
+}
+function brHome(){
+  const f=brFrame(); f.removeAttribute('src');
+  f.srcdoc=mediaPage('<div style="text-align:center"><div style="font-size:34px;margin-bottom:12px">🌐</div><div style="font-size:15px;color:#f0e9df;margin-bottom:8px">In-app browser</div><div style="font-size:12px;color:#b3a99c;max-width:300px;line-height:1.6">Use the tabs to search the web, images, or videos — or type any address. YouTube and Vimeo play right here.</div></div>');
+  brShowResults(false);
+}
+function brShowNoServer(){
+  const f=brFrame(); f.removeAttribute('src');
+  f.srcdoc=mediaPage('<div style="text-align:center;max-width:340px"><div style="font-size:30px;margin-bottom:10px">🌐</div><div style="font-size:14px;color:#f0e9df;margin-bottom:6px">Browsing needs the server</div><div style="font-size:12px;color:#b3a99c;line-height:1.6">Open ARIA from its hosted (Replit) URL to browse pages and search. Video links still play here directly.</div></div>');
+  brShowResults(false);
 }
 
-function brShowNoServer(){
-  const f=document.getElementById('browser-iframe');
-  f.srcdoc=`<!DOCTYPE html><html><head><meta charset="utf-8"><style>
-    body{font-family:system-ui,sans-serif;display:flex;align-items:center;justify-content:center;height:80vh;margin:0;background:#1a1714;color:#f0e9df}
-    .box{text-align:center;max-width:420px;padding:32px}h2{margin:0 0 10px}p{color:#b3a99c;font-size:14px;line-height:1.6;margin:0}
-    code{background:#2c2720;padding:2px 6px;border-radius:4px;font-size:12px}
-  </style></head><body><div class="box"><h2>🌐 Browser requires Replit</h2><p>The built-in browser uses a server-side proxy to load pages.<br><br>Upload these files to Replit, add your API keys to <strong>Secrets</strong>, and run <code>node server.js</code>.</p></div></body></html>`;
+function brSetMode(m){
+  brMode=m;
+  ['web','images','videos'].forEach(x=>{ const b=document.getElementById('brm-'+x); if(b) b.classList.toggle('on',x===m); });
+}
+
+function brShowResults(show){
+  const el=document.getElementById('br-results'); const f=brFrame();
+  if(el) el.classList.toggle('show',show);
+  if(f) f.style.visibility = show?'hidden':'visible';
+}
+function brResultsMsg(m){ const el=document.getElementById('br-results'); if(el){ el.innerHTML='<div class="br-msg">'+esc(m)+'</div>'; } brShowResults(true); }
+
+// Map known media links to an inline player; null = browse as a normal page.
+function mediaEmbed(u){
+  try{
+    const url=new URL(u, location.href);
+    const h=url.hostname.replace(/^www\./,'');
+    if(h==='youtube.com'||h==='m.youtube.com'||h==='music.youtube.com'){
+      if(url.pathname==='/watch'&&url.searchParams.get('v')) return {kind:'frame',src:'https://www.youtube.com/embed/'+url.searchParams.get('v')+'?rel=0'};
+      const sh=url.pathname.match(/^\/(?:shorts|embed|v|live)\/([\w-]{6,})/); if(sh) return {kind:'frame',src:'https://www.youtube.com/embed/'+sh[1]+'?rel=0'};
+    }
+    if(h==='youtu.be'){ const id=url.pathname.slice(1).split('/')[0]; if(id) return {kind:'frame',src:'https://www.youtube.com/embed/'+id+'?rel=0'}; }
+    if(h==='vimeo.com'){ const id=(url.pathname.split('/').filter(Boolean)[0]||''); if(/^\d+$/.test(id)) return {kind:'frame',src:'https://player.vimeo.com/video/'+id}; }
+    if(h==='player.vimeo.com') return {kind:'frame',src:url.href};
+    const p=url.pathname.toLowerCase();
+    if(/\.(mp4|webm|ogg|ogv|mov|m4v)$/.test(p)) return {kind:'video',src:url.href};
+    if(/\.(jpe?g|png|gif|webp|svg|avif|bmp)$/.test(p)) return {kind:'image',src:url.href};
+  }catch(e){}
+  return null;
 }
 
 function brNavigate(url){
-  if(!SERVER_MODE){ brShowNoServer(); return; }
   if(!url) return;
+  if(/^\/\//.test(url)) url='https:'+url;
   if(!/^https?:\/\//i.test(url)) url='https://'+url;
-
-  // Update history
-  brHistory = brHistory.slice(0, brPos+1);
-  brHistory.push(url);
-  brPos = brHistory.length-1;
+  brHistory=brHistory.slice(0,brPos+1); brHistory.push(url); brPos=brHistory.length-1;
   brLoad(url);
 }
 
 function brLoad(url){
   if(!url) return;
-  const f=document.getElementById('browser-iframe');
-  const addr=document.getElementById('br-addr');
-  const loading=document.getElementById('br-loading');
-  if(addr) addr.value=url;
-  loading.className='br-loading active';
-  f.src='/browse?url='+encodeURIComponent(url);
-  f.onload=()=>{ loading.className='br-loading done'; setTimeout(()=>loading.className='br-loading',500); brUpdateNav(); };
+  const f=brFrame();
+  const addr=document.getElementById('br-addr'); if(addr) addr.value=url;
+  const loading=document.getElementById('br-loading'); loading.className='br-loading active';
+  f.onload=()=>{ loading.className='br-loading done'; setTimeout(()=>loading.className='br-loading',500); };
+  brShowResults(false);
+  const m=mediaEmbed(url);
+  if(m){
+    if(m.kind==='frame'){ f.removeAttribute('srcdoc'); f.src=m.src; }
+    else if(m.kind==='video'){ f.removeAttribute('src'); f.srcdoc=mediaPage('<video src="'+esc(m.src)+'" controls autoplay playsinline style="max-width:100%;max-height:100%"></video>'); }
+    else { f.removeAttribute('src'); f.srcdoc=mediaPage('<img src="'+esc(m.src)+'" style="max-width:100%;max-height:100%;object-fit:contain">'); }
+  } else if(!SERVER_MODE){
+    brShowNoServer(); loading.className='br-loading';
+  } else {
+    f.removeAttribute('srcdoc'); f.src='/browse/'+url;
+  }
   brUpdateNav();
 }
 
 function brGo(val){
   val=(val||'').trim(); if(!val) return;
-  // If no dot and no protocol → treat as search query
-  if(!/^https?:\/\//i.test(val) && !val.includes('.')){
-    val='https://duckduckgo.com/?q='+encodeURIComponent(val);
-  }
-  brNavigate(val);
+  const looksUrl=/^https?:\/\//i.test(val) || /^[^\s]+\.[a-z]{2,}([\/?#]|$)/i.test(val);
+  if(looksUrl){ if(brMode!=='web') brSetMode('web'); brNavigate(val); return; }
+  if(brMode==='images') return brSearchImages(val);
+  if(brMode==='videos') return brSearchVideos(val);
+  brNavigate('https://html.duckduckgo.com/html/?q='+encodeURIComponent(val));
 }
 
-function brBack(){
-  if(brPos>0){ brPos--; brLoad(brHistory[brPos]); }
+async function brSearchImages(q){
+  brSetMode('images');
+  if(!SERVER_MODE){ brShowNoServer(); return; }
+  const addr=document.getElementById('br-addr'); if(addr) addr.value=q;
+  brResultsMsg('Searching images…');
+  try{
+    const d=await (await fetch('/api/images?q='+encodeURIComponent(q))).json();
+    const items=(d.results||[]).filter(x=>x.thumbnail||x.image);
+    if(!items.length){ brResultsMsg('No images found.'); return; }
+    brImgResults=items;
+    document.getElementById('br-results').innerHTML='<div class="br-grid">'+items.map((x,i)=>
+      `<img class="br-img" loading="lazy" src="${esc(x.thumbnail||x.image)}" title="${esc(x.title||'')}" onclick="brOpenImage(${i})" onerror="this.style.display='none'">`
+    ).join('')+'</div>';
+    brShowResults(true);
+  }catch(e){ brResultsMsg('Image search failed.'); }
 }
-function brForward(){
-  if(brPos<brHistory.length-1){ brPos++; brLoad(brHistory[brPos]); }
-}
-function brRefresh(){
-  if(brHistory[brPos]) brLoad(brHistory[brPos]);
-}
+function brOpenImage(i){ const x=brImgResults[i]; if(x) brNavigate(x.image||x.thumbnail); }
 
+async function brSearchVideos(q){
+  brSetMode('videos');
+  if(!SERVER_MODE){ brShowNoServer(); return; }
+  const addr=document.getElementById('br-addr'); if(addr) addr.value=q;
+  brResultsMsg('Searching videos…');
+  try{
+    const d=await (await fetch('/api/videos?q='+encodeURIComponent(q))).json();
+    const items=d.results||[];
+    if(!items.length){ brResultsMsg('No videos found.'); return; }
+    brVidResults=items;
+    document.getElementById('br-results').innerHTML='<div class="br-grid br-grid-v">'+items.map((x,i)=>
+      `<div class="br-vid" onclick="brPlayVideo(${i})"><img loading="lazy" src="${esc(x.thumbnail)}" onerror="this.style.display='none'"><div class="t">${esc(x.title||'Video')}${x.channel?'<br><span style="opacity:.6">'+esc(x.channel)+'</span>':''}</div></div>`
+    ).join('')+'</div>';
+    brShowResults(true);
+  }catch(e){ brResultsMsg('Video search failed.'); }
+}
+function brPlayVideo(i){ const x=brVidResults[i]; if(x) brNavigate('https://www.youtube.com/watch?v='+x.id); }
+
+function brBack(){ if(brPos>0){ brPos--; brLoad(brHistory[brPos]); } }
+function brForward(){ if(brPos<brHistory.length-1){ brPos++; brLoad(brHistory[brPos]); } }
+function brRefresh(){ if(brHistory[brPos]) brLoad(brHistory[brPos]); }
 function brUpdateNav(){
-  const back=document.getElementById('br-back'); const fwd=document.getElementById('br-fwd');
+  const back=document.getElementById('br-back'), fwd=document.getElementById('br-fwd');
   if(back) back.disabled = brPos<=0;
   if(fwd)  fwd.disabled  = brPos>=brHistory.length-1;
 }
 
 function brSendToARIA(){
-  if(!SERVER_MODE){ showToast('Browser requires Replit server.'); return; }
-  const f=document.getElementById('browser-iframe');
-  // Ask the embedded page to send its text content via postMessage
-  try{
-    f.contentWindow.postMessage({type:'getContent'},'*');
-    showToast('Extracting page…', false);
-  }catch(e){ showToast('Could not read page content.'); }
+  const f=brFrame();
+  try{ f.contentWindow.postMessage({type:'getContent'},'*'); showToast('Extracting page…', false); }
+  catch(e){ showToast('Could not read this page.'); }
 }
 
-// Listen for messages from the proxied page
+// Messages from the proxied page (navigation, title, extracted text)
 window.addEventListener('message', e=>{
   if(!e.data||typeof e.data!=='object') return;
   const{type,url,title,text}=e.data;
-
-  if(type==='navigate' && url){
-    brNavigate(url);
-  }
-  if(type==='browsed'){
+  if(type==='navigate' && url){ brNavigate(url); }
+  else if(type==='browsed'){
     const addr=document.getElementById('br-addr'); if(addr&&url) addr.value=url;
     if(url && brHistory[brPos]!==url){ brHistory=brHistory.slice(0,brPos+1); brHistory.push(url); brPos=brHistory.length-1; }
     brUpdateNav();
   }
-  if(type==='pageContent' && text){
+  else if(type==='pageContent' && text){
     const clean=text.replace(/\s+/g,' ').trim();
     const snippet=`[Page: ${title||url}]\n\n${clean}`;
     const inp=document.getElementById('msg-in');
-    if(inp){
-      inp.value=inp.value ? inp.value+'\n\n'+snippet : snippet;
-      resize(inp); inp.focus();
-      showToast('Page added to your message — edit then send.', false);
-    }
+    if(inp){ inp.value=inp.value ? inp.value+'\n\n'+snippet : snippet; resize(inp); inp.focus(); showToast('Page added to your message — edit then send.', false); }
   }
 });
+
+document.addEventListener('keydown', e=>{ if(e.key==='Escape'&&brFs) brFullscreen(); });
 
 </script>
 </body>
