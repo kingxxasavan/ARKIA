@@ -457,7 +457,7 @@
         <div class="sg-label">Provider &amp; Model</div>
         <!-- Server mode banner (visible only when hosted) -->
         <div id="server-banner" style="display:none;background:rgba(74,180,100,0.1);border:1px solid rgba(74,180,100,0.3);border-radius:10px;padding:10px 12px;font-size:12px;line-height:1.55;color:var(--text-2);">
-          🔑 <strong>Shared keys</strong> — providers marked “shared” work out of the box. To use Claude or GPT (or your own account), paste your API key in that provider below — it stays in your browser and is sent straight to the provider.
+          🔑 <strong>Starter</strong> — Ollama &amp; OpenRouter are free to use, no key needed. For advanced models like Claude or GPT, paste your own API key in that provider below — it stays in your browser and goes straight to the provider.
           <div id="server-key-status" style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px;font-size:11px;"></div>
         </div>
 
@@ -744,7 +744,7 @@ async function detectServerMode(){
     if(el){
       const labels={anthropic:'Claude',openai:'OpenAI',ollama:'Ollama',openrouter:'OpenRouter'};
       el.innerHTML=Object.entries(status).map(([id,on])=>
-        `<span style="padding:2px 7px;border-radius:20px;background:${on?'rgba(74,180,100,0.12)':'rgba(180,74,74,0.12)'};border:1px solid ${on?'rgba(74,180,100,0.25)':'rgba(180,74,74,0.25)'};color:${on?'var(--green)':'#b05050'}">${on?'✓ '+(labels[id]||id)+' (shared)':'✗ '+(labels[id]||id)+' — add your key'}</span>`
+        `<span style="padding:2px 7px;border-radius:20px;background:${on?'rgba(74,180,100,0.12)':'rgba(180,74,74,0.12)'};border:1px solid ${on?'rgba(74,180,100,0.25)':'rgba(180,74,74,0.25)'};color:${on?'var(--green)':'#b05050'}">${on?'✓ '+(labels[id]||id)+' (free)':(labels[id]||id)+' — your key'}</span>`
       ).join('');
     }
   }
@@ -1305,8 +1305,8 @@ function refreshKeyHints(){
   for(const p in ids){
     const el=document.getElementById(ids[p]); if(!el) continue;
     el.textContent = serverHasKey(p)
-      ? 'A shared key is provided — leave blank to use it, or paste your own to use your account.'
-      : 'Add your own API key to use this provider.';
+      ? 'Included free — no key needed. Paste your own to use your account.'
+      : 'Advanced — add your own API key to use this provider.';
   }
 }
 
