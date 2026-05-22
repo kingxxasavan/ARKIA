@@ -695,7 +695,7 @@
 </div>
 
 <div id="toast"></div>
-<input type="file" id="file-in" accept="image/*,.pdf" multiple onchange="onFiles(event)" />
+<input type="file" id="file-in" accept="image/jpeg,image/png,image/gif,image/webp,application/pdf,.pdf" multiple onchange="onFiles(event)" />
 
 <!-- Login / signup overlay (shown only when accounts are configured and nobody is signed in) -->
 <div id="auth-overlay" class="auth-overlay" style="display:none">
@@ -1476,7 +1476,18 @@ function togglePill(f){
 // ════════════════════════════════════════════════
 //  FILES + UI HELPERS
 // ════════════════════════════════════════════════
-async function onFiles(e){ for(const f of e.target.files){ const d=await toB64(f); attachments.push({name:f.name,type:f.type,data:d}); } renderChips(); e.target.value=''; }
+async function onFiles(e){
+  const okImg=['image/jpeg','image/png','image/gif','image/webp'];
+  for(const f of e.target.files){
+    const isImg=f.type.startsWith('image/');
+    if(isImg && !okImg.includes(f.type)){ showToast('Unsupported image ('+(f.type||'unknown')+'). Use JPG, PNG, GIF, or WebP — iPhone HEIC photos won’t work.'); continue; }
+    if(!isImg && f.type!=='application/pdf'){ showToast('Only images and PDFs are supported.'); continue; }
+    if(f.size > 18*1024*1024){ showToast(f.name+' is too large (max ~18 MB).'); continue; }
+    try{ const d=await toB64(f); attachments.push({name:f.name,type:f.type,data:d}); }
+    catch(_){ showToast('Could not read '+f.name+'.'); }
+  }
+  renderChips(); e.target.value='';
+}
 function toB64(f){ return new Promise((r,j)=>{ const rd=new FileReader(); rd.onload=()=>r(rd.result.split(',')[1]); rd.onerror=j; rd.readAsDataURL(f); }); }
 function renderChips(){ const row=document.getElementById('chips-row'); row.innerHTML=''; attachments.forEach((a,i)=>{ const c=document.createElement('div'); c.className='f-chip'; c.innerHTML=`📄 ${esc(a.name)}<button onclick="rmF(${i})">✕</button>`; row.appendChild(c); }); }
 function rmF(i){ attachments.splice(i,1); renderChips(); }
@@ -1661,6 +1672,7 @@ function toOAIMessages(){
       m.content.forEach(b=>{
         if(b.type==='text')parts.push({type:'text',text:b.text});
         else if(b.type==='image'){ hasImg=true; parts.push({type:'image_url',image_url:{url:`data:${b.source.media_type};base64,${b.source.data}`}}); }
+        else if(b.type==='document'){ parts.push({type:'text',text:'[A PDF was attached. PDFs can only be read when using Claude.]'}); }
       });
       out.push({role:m.role,content:hasImg?parts:(parts.map(p=>p.text).join('\n'))});
     }
@@ -1679,33 +1691,47 @@ async function callOpenAICompat(model,body){
   if(!tools.length) return await streamOpenAI(target,model,messages,body);
 
   let usedTools=[];
-  for(let round=0;round<6;round++){
-    const res=await fetch(endpoint(target,'/chat/completions'),{method:'POST',headers,body:JSON.stringify({model,messages,tools,stream:false})});
-    if(!res.ok){ const e=await res.json().catch(()=>({})); throw new Error(e.error?.message||`HTTP ${res.status}`); }
-    const data=await res.json(); const msg=data.choices?.[0]?.message;
-    if(msg?.tool_calls?.length){
-      messages.push({role:'assistant',content:msg.content||'',tool_calls:msg.tool_calls});
-      for(const tc of msg.tool_calls){
-        usedTools.push(tc.function.name);
-        body.innerHTML=toolChips(usedTools)+'<div class="searching"><div class="sp"></div>Using features…</div>';
-        let args={}; try{ args=JSON.parse(tc.function.arguments||'{}'); }catch{}
-        let result;
-        if(tc.function.name==='web_search') result=await ddgSearch(args.query||'');
-        else result=runLocalTool(tc.function.name,args);
-        messages.push({role:'tool',tool_call_id:tc.id,content:result});
+  try{
+    for(let round=0;round<6;round++){
+      const res=await fetch(endpoint(target,'/chat/completions'),{method:'POST',headers,body:JSON.stringify({model,messages,tools,stream:false})});
+      if(!res.ok){ const e=await res.json().catch(()=>({})); const err=new Error(oaiErr(e,res.status,messages)); err.status=res.status; throw err; }
+      const data=await res.json(); const msg=data.choices?.[0]?.message;
+      if(msg?.tool_calls?.length){
+        messages.push({role:'assistant',content:msg.content||'',tool_calls:msg.tool_calls});
+        for(const tc of msg.tool_calls){
+          usedTools.push(tc.function.name);
+          body.innerHTML=toolChips(usedTools)+'<div class="searching"><div class="sp"></div>Using features…</div>';
+          let args={}; try{ args=JSON.parse(tc.function.arguments||'{}'); }catch{}
+          let result;
+          if(tc.function.name==='web_search') result=await ddgSearch(args.query||'');
+          else result=runLocalTool(tc.function.name,args);
+          messages.push({role:'tool',tool_call_id:tc.id,content:result});
+        }
+        continue;
       }
-      continue;
+      const answer=stripThink(msg?.content||'');
+      body.innerHTML=toolChips(usedTools)+renderModelContent(msg?.content||'');
+      return answer;
     }
-    const answer=stripThink(msg?.content||'');
-    body.innerHTML=toolChips(usedTools)+renderModelContent(msg?.content||'');
-    return answer;
+    throw new Error('Max tool iterations.');
+  }catch(e){
+    // Many models don't support function-calling — if it failed before any tool ran, retry plainly.
+    if(!usedTools.length) return await streamOpenAI(target,model,messages,body);
+    throw e;
   }
-  throw new Error('Max tool iterations.');
+}
+
+// Friendlier errors for OpenAI-compatible providers.
+function oaiErr(e,status,messages){
+  const base=(e&&e.error&&e.error.message)?e.error.message:('HTTP '+status);
+  const hasImg=messages&&messages.some(m=>Array.isArray(m.content)&&m.content.some(p=>p&&p.type==='image_url'));
+  if(status===400&&hasImg) return 'This model can’t read images. Switch to a vision model like GPT-4o or Claude.';
+  return base;
 }
 
 async function streamOpenAI(target,model,messages,body){
   const res=await fetch(endpoint(target,'/chat/completions'),{method:'POST',headers:target.headers,body:JSON.stringify({model,messages,stream:true})});
-  if(!res.ok){ const e=await res.json().catch(()=>({})); throw new Error(e.error?.message||`HTTP ${res.status}`); }
+  if(!res.ok){ const e=await res.json().catch(()=>({})); throw new Error(oaiErr(e,res.status,messages)); }
   const reader=res.body.getReader(); const dec=new TextDecoder();
   let full='',buf='',started=false;
   while(true){
