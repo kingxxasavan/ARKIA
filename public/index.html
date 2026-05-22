@@ -329,57 +329,6 @@
     #file-in { display: none; }
 
     @media(max-width:640px){ #sidebar{display:none} .slide-panel{left:0; width:100%} }
-
-    /* ── Built-in Browser Panel ── */
-    #browser-col {
-      width: 0; flex-shrink: 0; overflow: hidden;
-      display: flex; flex-direction: column;
-      border-left: 1px solid var(--border);
-      background: var(--bg);
-      transition: width 0.3s cubic-bezier(0.16,1,0.3,1);
-    }
-    #browser-col.open { width: 460px; }
-    @media(max-width:900px){ #browser-col.open { width: 340px; } }
-
-    .br-toolbar {
-      height: 48px; flex-shrink: 0;
-      display: flex; align-items: center; gap: 5px;
-      padding: 0 10px;
-      border-bottom: 1px solid var(--border);
-      background: var(--bg-sidebar);
-    }
-    .br-nav { width: 28px; height: 28px; background: none; border: 1px solid var(--border); border-radius: 7px; cursor: pointer; color: var(--text-3); font-size: 14px; display: flex; align-items: center; justify-content: center; transition: all 0.12s; flex-shrink: 0; }
-    .br-nav:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
-    .br-nav:disabled { opacity: 0.28; cursor: not-allowed; }
-    .br-addr-wrap { flex: 1; position: relative; }
-    .br-addr { width: 100%; padding: 5px 8px; background: var(--bg-input); border: 1px solid var(--border-md); border-radius: 8px; font-family: var(--font-sans); font-size: 12px; color: var(--text-1); outline: none; transition: border-color 0.15s; }
-    .br-addr:focus { border-color: var(--accent); }
-    .br-send { height: 28px; padding: 0 10px; background: var(--accent-soft); border: 1px solid rgba(204,122,58,0.3); border-radius: 7px; font-family: var(--font-sans); font-size: 11px; font-weight: 600; color: var(--accent); cursor: pointer; white-space: nowrap; transition: all 0.15s; flex-shrink: 0; }
-    .br-send:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
-    .br-stage { flex: 1; position: relative; overflow: hidden; background: var(--bg); }
-    #browser-iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: none; background: var(--bg); }
-    .br-results { position: absolute; inset: 0; overflow-y: auto; background: var(--bg); padding: 10px; display: none; }
-    .br-results.show { display: block; }
-    .br-loading { position: absolute; bottom: 0; left: 0; height: 2px; background: var(--accent); width: 0; transition: width 0.3s ease; }
-    .br-loading.active { width: 70%; }
-    .br-loading.done { width: 100%; opacity: 0; transition: width 0.1s, opacity 0.4s 0.1s; }
-    .br-modes { display: flex; gap: 5px; padding: 7px 10px; border-bottom: 1px solid var(--border); background: var(--bg-sidebar); flex-shrink: 0; }
-    .br-mode { flex: 1; padding: 5px 0; font-family: var(--font-sans); font-size: 11px; font-weight: 600; border: 1px solid var(--border); border-radius: 7px; background: none; color: var(--text-3); cursor: pointer; transition: all 0.12s; }
-    .br-mode:hover { border-color: var(--accent); color: var(--accent); }
-    .br-mode.on { background: var(--accent-soft); border-color: rgba(204,122,58,0.3); color: var(--accent); }
-    #browser-col.fullscreen { position: fixed; inset: 0; width: 100vw !important; height: 100vh; z-index: 2000; border-left: none; }
-    .br-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 8px; }
-    .br-grid-v { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
-    .br-img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 8px; cursor: pointer; background: var(--bg-card); border: 1px solid var(--border); transition: transform 0.1s; }
-    .br-img:hover { transform: scale(1.03); border-color: var(--accent); }
-    .br-vid { cursor: pointer; border-radius: 8px; overflow: hidden; border: 1px solid var(--border); background: var(--bg-card); }
-    .br-vid:hover { border-color: var(--accent); }
-    .br-vid img { width: 100%; aspect-ratio: 16/9; object-fit: cover; display: block; }
-    .br-vid .t { font-size: 11px; padding: 6px 8px; color: var(--text-2); line-height: 1.35; max-height: 52px; overflow: hidden; }
-    .br-msg { text-align: center; color: var(--text-3); font-size: 13px; padding: 44px 16px; line-height: 1.6; }
-    #br-toggle { height: 30px; padding: 0 10px; display: flex; align-items: center; gap: 6px; background: none; border: 1px solid var(--border-md); border-radius: 8px; font-family: var(--font-sans); font-size: 12px; font-weight: 500; color: var(--text-3); cursor: pointer; transition: all 0.15s; white-space: nowrap; }
-    #br-toggle:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
-    #br-toggle.on { background: var(--accent-soft); border-color: rgba(204,122,58,0.3); color: var(--accent); }
   </style>
 </head>
 <body>
@@ -532,8 +481,16 @@
             <div style="display:flex;flex-wrap:wrap;gap:5px">
               <button class="model-sug" onclick="pickCloudModel('gpt-oss:120b')">gpt-oss:120b</button>
               <button class="model-sug" onclick="pickCloudModel('gpt-oss:20b')">gpt-oss:20b</button>
-              <button class="model-sug" onclick="pickCloudModel('qwen3-coder:480b')">qwen3-coder:480b</button>
               <button class="model-sug" onclick="pickCloudModel('deepseek-v3.1:671b')">deepseek-v3.1:671b</button>
+              <button class="model-sug" onclick="pickCloudModel('qwen3-coder:480b')">qwen3-coder:480b</button>
+              <button class="model-sug" onclick="pickCloudModel('qwen3-vl:235b')">qwen3-vl:235b</button>
+              <button class="model-sug" onclick="pickCloudModel('qwen3:235b')">qwen3:235b</button>
+              <button class="model-sug" onclick="pickCloudModel('kimi-k2:1t')">kimi-k2:1t</button>
+              <button class="model-sug" onclick="pickCloudModel('kimi-k2-thinking')">kimi-k2-thinking</button>
+              <button class="model-sug" onclick="pickCloudModel('glm-4.6')">glm-4.6</button>
+              <button class="model-sug" onclick="pickCloudModel('minimax-m2')">minimax-m2</button>
+              <button class="model-sug" onclick="pickCloudModel('deepseek-v3.1:671b-cloud')">deepseek-v3.1 (cloud)</button>
+              <button class="model-sug" onclick="pickCloudModel('gpt-oss:120b-cloud')">gpt-oss:120b (cloud)</button>
             </div>
             <div class="local-key-fields">
               <div class="key-wrap">
@@ -624,10 +581,6 @@
       <span class="tb-badge on" id="b-search">Search ON</span>
       <span class="model-badge anthropic" id="b-provider">Claude</span>
       <span class="tb-badge" id="b-model">Sonnet 4</span>
-      <button id="br-toggle" onclick="toggleBrowser()" title="Toggle built-in browser">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
-        Browser
-      </button>
     </div>
 
     <div id="messages"></div>
@@ -652,30 +605,6 @@
       <div class="in-hint">Enter to send · Shift+Enter for newline</div>
     </div>
   </main>
-
-  <!-- ── Built-in Browser Panel ── -->
-  <div id="browser-col">
-    <div class="br-toolbar">
-      <button class="br-nav" id="br-back"    onclick="brBack()"    title="Back">&#8592;</button>
-      <button class="br-nav" id="br-fwd"     onclick="brForward()" title="Forward">&#8594;</button>
-      <button class="br-nav" id="br-refresh" onclick="brRefresh()" title="Refresh">&#8635;</button>
-      <div class="br-addr-wrap">
-        <input id="br-addr" class="br-addr" type="text" placeholder="Search or enter a web address…" onkeydown="if(event.key==='Enter')brGo(this.value)" />
-        <div class="br-loading" id="br-loading"></div>
-      </div>
-      <button class="br-nav" id="br-fs" onclick="brFullscreen()" title="Fullscreen">&#9974;</button>
-      <button class="br-send" onclick="brSendToARIA()" title="Send page text to ARIA">→ ARIA</button>
-    </div>
-    <div class="br-modes">
-      <button class="br-mode on" id="brm-web"    onclick="brSetMode('web')">Web</button>
-      <button class="br-mode"    id="brm-images" onclick="brSetMode('images')">Images</button>
-      <button class="br-mode"    id="brm-videos" onclick="brSetMode('videos')">Videos</button>
-    </div>
-    <div class="br-stage">
-      <iframe id="browser-iframe" allow="autoplay; encrypted-media; picture-in-picture; fullscreen; clipboard-write" allowfullscreen sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-modals allow-presentation allow-downloads"></iframe>
-      <div id="br-results" class="br-results"></div>
-    </div>
-  </div>
 </div>
 
 <div id="toast"></div>
@@ -1516,193 +1445,6 @@ async function ddgSearch(query){
   }catch{ return 'Search failed.'; }
 }
 
-// ════════════════════════════════════════════════
-//  BUILT-IN BROWSER
-// ════════════════════════════════════════════════
-let brOpen=false, brMode='web', brFs=false, brImgResults=[], brVidResults=[], _uvReady=null;
-
-function brFrame(){ return document.getElementById('browser-iframe'); }
-function mediaPage(inner){ return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>html,body{margin:0;height:100%}body{display:flex;align-items:center;justify-content:center;background:#1a1714;font-family:system-ui,sans-serif;padding:16px;box-sizing:border-box}</style></head><body>${inner}</body></html>`; }
-
-function toggleBrowser(){
-  brOpen=!brOpen;
-  document.getElementById('browser-col').classList.toggle('open',brOpen);
-  document.getElementById('br-toggle').classList.toggle('on',brOpen);
-  if(brOpen && !brFrame().src && !brFrame().srcdoc){ brHome(); if(SERVER_MODE) brEnsureUV().catch(()=>{}); }
-}
-function brFullscreen(){
-  brFs=!brFs;
-  document.getElementById('browser-col').classList.toggle('fullscreen',brFs);
-  const b=document.getElementById('br-fs'); if(b) b.classList.toggle('on',brFs);
-}
-function brHome(){
-  const f=brFrame(); f.removeAttribute('src');
-  f.srcdoc=mediaPage('<div style="text-align:center"><div style="font-size:34px;margin-bottom:12px">🌐</div><div style="font-size:15px;color:#f0e9df;margin-bottom:8px">In-app browser</div><div style="font-size:12px;color:#b3a99c;max-width:300px;line-height:1.6">Search the web, images, or videos with the tabs above — or type any address (YouTube, TikTok, anything). It opens right here.</div></div>');
-  brShowResults(false);
-}
-function brShowNoServer(){
-  const f=brFrame(); f.removeAttribute('src');
-  f.srcdoc=mediaPage('<div style="text-align:center;max-width:340px"><div style="font-size:30px;margin-bottom:10px">🌐</div><div style="font-size:14px;color:#f0e9df;margin-bottom:6px">Browsing needs the server</div><div style="font-size:12px;color:#b3a99c;line-height:1.6">Open ARIA from its hosted (Replit) URL — the in-app browser runs through the server.</div></div>');
-  brShowResults(false);
-}
-
-// ── Ultraviolet proxy engine (loaded on demand) ──
-function brLoadScript(src){ return new Promise((res,rej)=>{ const s=document.createElement('script'); s.src=src; s.onload=res; s.onerror=()=>rej(new Error('Failed to load '+src)); document.head.appendChild(s); }); }
-function brEnsureUV(){
-  if(_uvReady) return _uvReady;
-  _uvReady=(async()=>{
-    await brLoadScript('/uv/uv.bundle.js');
-    await brLoadScript('/uv/uv.config.js');
-    const { BareMuxConnection } = await import('/baremux/index.mjs');
-    const conn=new BareMuxConnection('/baremux/worker.js');
-    let cur=''; try{ cur=await conn.getTransport(); }catch(e){}
-    if(cur!=='/baremod/index.mjs') await conn.setTransport('/baremod/index.mjs',[{bare:'/bare/'}]);
-    if(!('serviceWorker' in navigator)) throw new Error('Service workers unavailable — open ARIA over HTTPS.');
-    const reg=await navigator.serviceWorker.register('/uv/sw.js',{scope:'/service/'});
-    await new Promise(r=>{ const w=reg.active||reg.waiting||reg.installing; if(reg.active) return r(); if(!w) return r(); w.addEventListener('statechange',()=>{ if(w.state==='activated') r(); }); });
-  })().catch(err=>{ _uvReady=null; throw err; });
-  return _uvReady;
-}
-
-function brSetMode(m){
-  brMode=m;
-  ['web','images','videos'].forEach(x=>{ const b=document.getElementById('brm-'+x); if(b) b.classList.toggle('on',x===m); });
-}
-function brShowResults(show){
-  const el=document.getElementById('br-results'); const f=brFrame();
-  if(el) el.classList.toggle('show',show);
-  if(f) f.style.visibility = show?'hidden':'visible';
-}
-function brResultsMsg(m){ const el=document.getElementById('br-results'); if(el){ el.innerHTML='<div class="br-msg">'+esc(m)+'</div>'; } brShowResults(true); }
-
-// Known media links get an inline player; everything else is browsed via the proxy.
-function mediaEmbed(u){
-  try{
-    const url=new URL(u, location.href);
-    const h=url.hostname.replace(/^www\./,'');
-    if(h==='youtube.com'||h==='m.youtube.com'||h==='music.youtube.com'){
-      if(url.pathname==='/watch'&&url.searchParams.get('v')) return {kind:'frame',src:'https://www.youtube.com/embed/'+url.searchParams.get('v')+'?rel=0'};
-      const sh=url.pathname.match(/^\/(?:shorts|embed|v|live)\/([\w-]{6,})/); if(sh) return {kind:'frame',src:'https://www.youtube.com/embed/'+sh[1]+'?rel=0'};
-    }
-    if(h==='youtu.be'){ const id=url.pathname.slice(1).split('/')[0]; if(id) return {kind:'frame',src:'https://www.youtube.com/embed/'+id+'?rel=0'}; }
-    if(h==='vimeo.com'){ const id=(url.pathname.split('/').filter(Boolean)[0]||''); if(/^\d+$/.test(id)) return {kind:'frame',src:'https://player.vimeo.com/video/'+id}; }
-    if(h==='player.vimeo.com') return {kind:'frame',src:url.href};
-    const p=url.pathname.toLowerCase();
-    if(/\.(mp4|webm|ogg|ogv|mov|m4v)$/.test(p)) return {kind:'video',src:url.href};
-    if(/\.(jpe?g|png|gif|webp|svg|avif|bmp)$/.test(p)) return {kind:'image',src:url.href};
-  }catch(e){}
-  return null;
-}
-
-function brNavigate(url){
-  if(!url) return;
-  if(/^\/\//.test(url)) url='https:'+url;
-  if(!/^https?:\/\//i.test(url)) url='https://'+url;
-  brLoad(url);
-}
-function brLoad(url){
-  if(!url) return;
-  brShowResults(false);
-  const f=brFrame(); const addr=document.getElementById('br-addr'); if(addr) addr.value=url;
-  const m=mediaEmbed(url);
-  if(m){
-    if(m.kind==='frame'){ f.removeAttribute('srcdoc'); f.src=m.src; }
-    else if(m.kind==='video'){ f.removeAttribute('src'); f.srcdoc=mediaPage('<video src="'+esc(m.src)+'" controls autoplay playsinline style="max-width:100%;max-height:100%"></video>'); }
-    else { f.removeAttribute('src'); f.srcdoc=mediaPage('<img src="'+esc(m.src)+'" style="max-width:100%;max-height:100%;object-fit:contain">'); }
-    return;
-  }
-  brProxyLoad(url);
-}
-async function brProxyLoad(url){
-  const f=brFrame(); const loading=document.getElementById('br-loading');
-  if(!SERVER_MODE){ brShowNoServer(); return; }
-  loading.className='br-loading active';
-  try{
-    await brEnsureUV();
-    f.removeAttribute('srcdoc');
-    f.src=__uv$config.prefix+__uv$config.encodeUrl(url);
-  }catch(e){
-    // Fall back to the lightweight static proxy (renders simple pages)
-    try{ f.removeAttribute('srcdoc'); f.src='/browse/'+url; }
-    catch(_){ loading.className='br-loading'; brResultsMsg('Could not start the browser engine: '+(e.message||e)); }
-  }
-}
-
-function brGo(val){
-  val=(val||'').trim(); if(!val) return;
-  const looksUrl=/^https?:\/\//i.test(val) || /^[^\s]+\.[a-z]{2,}([\/?#]|$)/i.test(val);
-  if(looksUrl){ if(brMode!=='web') brSetMode('web'); brNavigate(val); return; }
-  if(brMode==='images') return brSearchImages(val);
-  if(brMode==='videos') return brSearchVideos(val);
-  brNavigate('https://duckduckgo.com/?q='+encodeURIComponent(val));
-}
-
-async function brSearchImages(q){
-  brSetMode('images');
-  if(!SERVER_MODE){ brShowNoServer(); return; }
-  const addr=document.getElementById('br-addr'); if(addr) addr.value=q;
-  brResultsMsg('Searching images…');
-  try{
-    const d=await (await fetch('/api/images?q='+encodeURIComponent(q))).json();
-    const items=(d.results||[]).filter(x=>x.thumbnail||x.image);
-    if(!items.length){ brResultsMsg('No images found.'); return; }
-    brImgResults=items;
-    document.getElementById('br-results').innerHTML='<div class="br-grid">'+items.map((x,i)=>
-      `<img class="br-img" loading="lazy" src="${esc(x.thumbnail||x.image)}" title="${esc(x.title||'')}" onclick="brOpenImage(${i})" onerror="this.style.display='none'">`
-    ).join('')+'</div>';
-    brShowResults(true);
-  }catch(e){ brResultsMsg('Image search failed.'); }
-}
-function brOpenImage(i){ const x=brImgResults[i]; if(!x) return; const u=x.image||x.thumbnail; const f=brFrame(); brShowResults(false); f.removeAttribute('src'); f.srcdoc=mediaPage('<img src="'+esc(u)+'" style="max-width:100%;max-height:100%;object-fit:contain">'); const addr=document.getElementById('br-addr'); if(addr) addr.value=u; }
-
-async function brSearchVideos(q){
-  brSetMode('videos');
-  if(!SERVER_MODE){ brShowNoServer(); return; }
-  const addr=document.getElementById('br-addr'); if(addr) addr.value=q;
-  brResultsMsg('Searching videos…');
-  try{
-    const d=await (await fetch('/api/videos?q='+encodeURIComponent(q))).json();
-    const items=d.results||[];
-    if(!items.length){ brResultsMsg('No videos found.'); return; }
-    brVidResults=items;
-    document.getElementById('br-results').innerHTML='<div class="br-grid br-grid-v">'+items.map((x,i)=>
-      `<div class="br-vid" onclick="brPlayVideo(${i})"><img loading="lazy" src="${esc(x.thumbnail)}" onerror="this.style.display='none'"><div class="t">${esc(x.title||'Video')}${x.channel?'<br><span style="opacity:.6">'+esc(x.channel)+'</span>':''}</div></div>`
-    ).join('')+'</div>';
-    brShowResults(true);
-  }catch(e){ brResultsMsg('Video search failed.'); }
-}
-function brPlayVideo(i){ const x=brVidResults[i]; if(x) brNavigate('https://www.youtube.com/watch?v='+x.id); }
-
-function brBack(){ try{ brFrame().contentWindow.history.back(); }catch(e){} }
-function brForward(){ try{ brFrame().contentWindow.history.forward(); }catch(e){} }
-function brRefresh(){ try{ brFrame().contentWindow.location.reload(); }catch(e){} }
-
-function brSendToARIA(){
-  try{
-    const doc=brFrame().contentWindow.document;
-    const title=doc.title||'';
-    const text=(doc.body?doc.body.innerText:'').replace(/\s+/g,' ').trim().slice(0,8000);
-    if(!text){ showToast('Nothing to read on this page yet.'); return; }
-    const inp=document.getElementById('msg-in'); const snippet=`[Page: ${title}]\n\n${text}`;
-    inp.value=inp.value ? inp.value+'\n\n'+snippet : snippet; resize(inp); inp.focus();
-    showToast('Page added to your message — edit then send.', false);
-  }catch(e){ showToast('Could not read this page (it may still be loading).'); }
-}
-
-// Update the loading bar and the address bar after each in-frame navigation.
-function brOnFrameLoad(){
-  const l=document.getElementById('br-loading'); if(l){ l.className='br-loading done'; setTimeout(()=>l.className='br-loading',500); }
-  try{
-    const loc=brFrame().contentWindow.location;
-    if(window.__uv$config && loc.pathname.indexOf(__uv$config.prefix)===0){
-      const real=__uv$config.decodeUrl(loc.pathname.slice(__uv$config.prefix.length));
-      const addr=document.getElementById('br-addr'); if(real&&addr) addr.value=real;
-    }
-  }catch(e){}
-}
-(function(){ const f=document.getElementById('browser-iframe'); if(f) f.addEventListener('load', brOnFrameLoad); })();
-
-document.addEventListener('keydown', e=>{ if(e.key==='Escape'&&brFs) brFullscreen(); });
 
 </script>
 </body>
