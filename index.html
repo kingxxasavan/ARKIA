@@ -237,6 +237,7 @@
     .mem-empty { font-size: 12px; color: var(--text-3); font-style: italic; padding: 4px 0; }
     .mem-add { display: flex; gap: 6px; }
     .mem-add .key-input { flex: 1; }
+    .mem-big { width: 100%; box-sizing: border-box; font-size: 15px; line-height: 1.45; padding: 12px 14px; resize: vertical; min-height: 52px; font-family: var(--font-sans); }
     .row-2 { display: flex; gap: 8px; }
     .row-2 > * { flex: 1; }
 
@@ -591,19 +592,11 @@
           <div class="tog-sw"></div>
         </div>
         <div class="mem-list" id="mem-list"></div>
-        <div class="mem-add">
-          <input id="mem-input" class="key-input" type="text" placeholder="Add something ARIA should remember…" onkeydown="if(event.key==='Enter')addMemoryFact()" />
-          <button class="fetch-btn" onclick="addMemoryFact()">Add</button>
-        </div>
+        <textarea id="mem-input" class="key-input mem-big" rows="2" placeholder="Add something ARIA should remember…" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();addMemoryFact();}"></textarea>
         <div class="row-2">
-          <button class="btn" id="learn-btn" onclick="learnFromConversation(true)">Learn from this chat</button>
+          <button class="btn primary" id="mem-add-btn" onclick="addMemoryFact()">Save</button>
           <button class="btn" onclick="clearMemory()">Clear all</button>
         </div>
-        <div class="row-2">
-          <button class="btn" onclick="exportMemory()">Export JSON</button>
-          <button class="btn" onclick="document.getElementById('mem-import').click()">Import JSON</button>
-        </div>
-        <input type="file" id="mem-import" accept="application/json,.json" style="display:none" onchange="importMemoryFile(this)" />
       </div>
 
       <div class="sp-divider"></div>
@@ -947,31 +940,6 @@ async function loadUserMemory(uid){
     if(added) persistMemory(out);
   }catch(e){}
 }
-function exportMemory(){
-  const data={ version:1, app:'ARIA', exported:new Date().toISOString(), facts:loadMemory() };
-  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement('a'); a.href=url; a.download='aria-memory-'+todayStr()+'.json';
-  document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(()=>URL.revokeObjectURL(url),1000);
-  showToast('Memory exported.', false);
-}
-function importMemoryFile(input){
-  const file=input.files&&input.files[0]; if(!file){ return; }
-  const reader=new FileReader();
-  reader.onload=()=>{
-    try{
-      const parsed=JSON.parse(reader.result);
-      const incoming=Array.isArray(parsed)?parsed:(Array.isArray(parsed.facts)?parsed.facts:null);
-      if(!incoming) throw new Error('no "facts" array found');
-      const {out,added}=mergeFacts(loadMemory(),incoming);
-      saveMemory(out);
-      showToast(added?('Imported '+added+' fact'+(added>1?'s':'')+'.'):'Nothing new to import.', false);
-    }catch(e){ showToast('Import failed: '+(e.message||e)); }
-    input.value='';
-  };
-  reader.readAsText(file);
-}
 // ════════════════════════════════════════════════
 //  ACCOUNTS (Firebase auth + Firestore — set up by the module script below)
 // ════════════════════════════════════════════════
@@ -1097,7 +1065,12 @@ function renderMemory(){
     const ta=row.querySelector('textarea'); ta.style.height='auto'; ta.style.height=ta.scrollHeight+'px';
   });
 }
-function addMemoryFact(){ const inp=document.getElementById('mem-input'); const v=inp.value.trim(); if(!v) return; const mem=loadMemory(); mem.push(v); saveMemory(mem); inp.value=''; }
+function addMemoryFact(){
+  const inp=document.getElementById('mem-input'); const v=inp.value.trim(); if(!v) return;
+  const mem=loadMemory(); mem.push(v); saveMemory(mem); inp.value=''; inp.focus();
+  const btn=document.getElementById('mem-add-btn');
+  if(btn){ btn.textContent='Saved ✓'; btn.disabled=true; setTimeout(()=>{ btn.textContent='Save'; btn.disabled=false; }, 1200); }
+}
 function editMemoryFact(i,v){ const mem=loadMemory(); if(v.trim()) mem[i]=v.trim(); else mem.splice(i,1); saveMemory(mem); }
 function removeMemoryFact(i){ const mem=loadMemory(); mem.splice(i,1); saveMemory(mem); }
 function clearMemory(){ if(confirm('Forget everything ARIA has learned about you?')){ saveMemory([]); } }
