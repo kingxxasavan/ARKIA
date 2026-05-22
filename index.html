@@ -663,14 +663,10 @@
 <div id="auth-overlay" class="auth-overlay" style="display:none">
   <div class="auth-card">
     <div class="auth-logo">A</div>
-    <div class="auth-title" id="auth-title">Welcome back</div>
-    <div class="auth-sub">Sign in so your memory and preferences follow you everywhere.</div>
-    <input id="auth-email" class="auth-input" type="email" placeholder="Email" autocomplete="email">
-    <input id="auth-pass" class="auth-input" type="password" placeholder="Password" autocomplete="current-password" onkeydown="if(event.key==='Enter')ariaAuthSubmit()">
-    <div class="auth-err" id="auth-err"></div>
-    <button class="auth-btn primary" id="auth-submit" onclick="ariaAuthSubmit()">Sign in</button>
-    <button class="auth-btn" onclick="ariaGoogle()">Continue with Google</button>
-    <div class="auth-toggle" id="auth-toggle">New to ARIA? <a onclick="ariaAuthToggle()">Create an account</a></div>
+    <div class="auth-title">Welcome to ARIA</div>
+    <div class="auth-sub">Sign in so your memory and chats follow you everywhere.</div>
+    <button class="auth-btn primary" onclick="ariaLogin()">Log in</button>
+    <button class="auth-btn" onclick="ariaSignup()">Create an account</button>
   </div>
 </div>
 
@@ -865,23 +861,27 @@ function deleteCustomFeature(id){
 // ════════════════════════════════════════════════
 function loadMemory(){ try{ return JSON.parse(LS.get('aria_memory')||'[]'); }catch{ return []; } }
 function saveMemory(arr){ LS.set('aria_memory',JSON.stringify(arr)); renderMemory(); if(featOpen)renderFeatures(); persistMemory(arr); }
-// When signed in, memory is persisted per-user in Firebase; localStorage is the offline cache.
-function persistMemory(arr){
-  if(window.ARIA_UID && window.ARIA_FB && window.ARIA_FB.configured){
-    window.ARIA_FB.saveMemory(window.ARIA_UID, arr).catch(()=>{});
-  }
+// Authenticated fetch to our data API — attaches the Auth0 token. Returns null if signed out.
+async function apiAuthFetch(path, opts){
+  if(!(window.ARIA_AUTH && window.ARIA_AUTH.configured && window.ARIA_UID)) return null;
+  let token=null; try{ token=await window.ARIA_AUTH.getToken(); }catch(e){}
+  if(!token) return null;
+  const headers=Object.assign({'Content-Type':'application/json'}, (opts&&opts.headers)||{}, {'Authorization':'Bearer '+token});
+  return fetch(path, Object.assign({}, opts||{}, {headers}));
 }
+// When signed in, memory is stored per-user in the database; localStorage is the offline cache.
+function persistMemory(arr){ apiAuthFetch('/api/memory',{method:'PUT',body:JSON.stringify({facts:arr})}).catch(()=>{}); }
 function mergeFacts(base,incoming){
   const seen=new Set(base.map(f=>f.toLowerCase())); const out=[...base]; let added=0;
   (incoming||[]).forEach(f=>{ if(typeof f==='string'&&f.trim()&&!seen.has(f.toLowerCase())){ out.push(f.trim()); seen.add(f.toLowerCase()); added++; } });
   return {out,added};
 }
 // On sign-in, pull this user's saved memory and merge it with anything stored locally.
-async function loadUserMemory(uid){
-  if(!(window.ARIA_FB && window.ARIA_FB.configured)) return;
+async function loadUserMemory(){
   try{
-    const cloud=await window.ARIA_FB.loadMemory(uid);
-    const {out,added}=mergeFacts(loadMemory(), cloud||[]);
+    const r=await apiAuthFetch('/api/memory'); if(!r||!r.ok) return;
+    const d=await r.json(); const cloud=Array.isArray(d.facts)?d.facts:[];
+    const {out,added}=mergeFacts(loadMemory(), cloud);
     LS.set('aria_memory',JSON.stringify(out)); renderMemory(); if(featOpen)renderFeatures();
     if(added) persistMemory(out);
   }catch(e){}
@@ -914,41 +914,16 @@ function importMemoryFile(input){
 // ════════════════════════════════════════════════
 //  ACCOUNTS (Firebase auth — set up by the module script below)
 // ════════════════════════════════════════════════
-let authMode='signin';
 window.ARIA_UID=null;
-function ariaAuthToggle(){
-  authMode = authMode==='signin'?'signup':'signin';
-  document.getElementById('auth-title').textContent = authMode==='signin'?'Welcome back':'Create your account';
-  document.getElementById('auth-submit').textContent = authMode==='signin'?'Sign in':'Sign up';
-  document.getElementById('auth-toggle').innerHTML = authMode==='signin'
-    ? 'New to ARIA? <a onclick="ariaAuthToggle()">Create an account</a>'
-    : 'Already have an account? <a onclick="ariaAuthToggle()">Sign in</a>';
-  document.getElementById('auth-err').textContent='';
-}
-async function ariaAuthSubmit(){
-  const email=document.getElementById('auth-email').value.trim();
-  const pass=document.getElementById('auth-pass').value;
-  const err=document.getElementById('auth-err'); err.textContent='';
-  if(!email||!pass){ err.textContent='Enter your email and password.'; return; }
-  if(!(window.ARIA_FB&&window.ARIA_FB.configured)){ err.textContent='Accounts are not configured on this server.'; return; }
-  const btn=document.getElementById('auth-submit'); btn.disabled=true; const t=btn.textContent; btn.textContent='…';
-  try{
-    if(authMode==='signin') await window.ARIA_FB.signInEmail(email,pass);
-    else await window.ARIA_FB.signUpEmail(email,pass);
-  }catch(e){ err.textContent=ariaAuthErr(e); }
-  btn.disabled=false; btn.textContent=t;
-}
-async function ariaGoogle(){
-  const err=document.getElementById('auth-err'); err.textContent='';
-  if(!(window.ARIA_FB&&window.ARIA_FB.configured)){ err.textContent='Accounts are not configured on this server.'; return; }
-  try{ await window.ARIA_FB.signInGoogle(); }catch(e){ err.textContent=ariaAuthErr(e); }
-}
-function ariaSignOut(){ if(window.ARIA_FB&&window.ARIA_FB.configured) window.ARIA_FB.signOut().catch(()=>{}); }
+function ariaLogin(){ if(window.ARIA_AUTH&&window.ARIA_AUTH.configured) window.ARIA_AUTH.login(); }
+function ariaSignup(){ if(window.ARIA_AUTH&&window.ARIA_AUTH.configured) window.ARIA_AUTH.signup(); }
+function ariaSignOut(){ if(window.ARIA_AUTH&&window.ARIA_AUTH.configured) window.ARIA_AUTH.logout(); }
 async function ariaSaveName(){
-  if(!(window.ARIA_FB&&window.ARIA_FB.configured&&window.ARIA_UID)){ showToast('Sign in first.'); return; }
+  if(!(window.ARIA_AUTH&&window.ARIA_AUTH.configured&&window.ARIA_UID)){ showToast('Sign in first.'); return; }
   const name=document.getElementById('account-username').value.trim();
-  try{ await window.ARIA_FB.updateName(name); applyAccountName(name, document.getElementById('account-email').textContent); showToast('Username updated.', false); }
-  catch(e){ showToast('Could not update username.'); }
+  const r=await apiAuthFetch('/api/profile',{method:'PUT',body:JSON.stringify({displayName:name})});
+  if(r&&r.ok){ applyAccountName(name, document.getElementById('account-email').textContent); showToast('Username updated.', false); }
+  else showToast('Could not update username.');
 }
 function applyAccountName(name, email){
   email=email||'';
@@ -958,38 +933,40 @@ function applyAccountName(name, email){
   set('account-name', nm); set('account-av', initial);
   set('sb-account-name', nm); set('sb-av', initial); set('sb-account-sub', email||'Signed in');
 }
-function ariaAuthErr(e){
-  const c=(e&&e.code)||'';
-  if(c.includes('invalid-credential')||c.includes('wrong-password')||c.includes('user-not-found')) return 'Wrong email or password.';
-  if(c.includes('email-already-in-use')) return 'That email already has an account — sign in instead.';
-  if(c.includes('weak-password')) return 'Password should be at least 6 characters.';
-  if(c.includes('invalid-email')) return 'That email looks invalid.';
-  if(c.includes('popup-closed')||c.includes('cancelled-popup')) return '';
-  return (e&&e.message)||'Something went wrong.';
+async function loadUserProfile(){
+  try{
+    const r=await apiAuthFetch('/api/profile'); if(!r||!r.ok) return;
+    const d=await r.json();
+    if(d.displayName){
+      const un=document.getElementById('account-username'); if(un) un.value=d.displayName;
+      applyAccountName(d.displayName, document.getElementById('account-email').textContent);
+    }
+  }catch(e){}
 }
-// Called by the Firebase module on every auth-state change (and once if unconfigured).
+// Called by the Auth0 module on load (with the user, or null if signed out / unconfigured).
 window.onAriaUser=function(user){
   const overlay=document.getElementById('auth-overlay');
   const accSg=document.getElementById('account-sg'), accDiv=document.getElementById('account-divider');
   const sbAcc=document.getElementById('sb-account');
-  if(!(window.ARIA_FB&&window.ARIA_FB.configured)){
+  if(!(window.ARIA_AUTH&&window.ARIA_AUTH.configured)){
     if(overlay) overlay.style.display='none';
     if(accSg) accSg.style.display='none'; if(accDiv) accDiv.style.display='none';
     if(sbAcc) sbAcc.style.display='none';
     return;
   }
   if(user){
-    window.ARIA_UID=user.uid;
+    window.ARIA_UID=user.sub||user.user_id||'me';
     const email=user.email||'';
     if(overlay) overlay.style.display='none';
     if(accSg) accSg.style.display='';
     if(accDiv) accDiv.style.display='';
     if(sbAcc) sbAcc.style.display='flex';
     const emailEl=document.getElementById('account-email'); if(emailEl) emailEl.textContent=email||'Signed in';
-    const unEl=document.getElementById('account-username'); if(unEl) unEl.value=user.displayName||'';
-    applyAccountName(user.displayName||'', email);
-    loadUserMemory(user.uid);
-    loadUserChats(user.uid);
+    const unEl=document.getElementById('account-username'); if(unEl) unEl.value=user.name||user.nickname||'';
+    applyAccountName(user.name||user.nickname||'', email);
+    loadUserProfile();
+    loadUserMemory();
+    loadUserChats();
   }else{
     window.ARIA_UID=null;
     if(overlay) overlay.style.display='flex';
@@ -1061,23 +1038,19 @@ async function quickComplete(promptText){
 function genId(){ return 'conv_'+Date.now()+'_'+Math.random().toString(36).slice(2,7); }
 function loadConvs(){ try{ return JSON.parse(LS.get('aria_convs')||'[]'); }catch{ return []; } }
 function saveConvs(list){ LS.set('aria_convs',JSON.stringify(list)); persistChats(list); }
-// When signed in, chat history syncs per-user in Firebase; localStorage is the offline cache.
-function persistChats(list){
-  if(window.ARIA_UID && window.ARIA_FB && window.ARIA_FB.configured){
-    window.ARIA_FB.saveChats(window.ARIA_UID, list).catch(()=>{});
-  }
-}
+// When signed in, chat history syncs per-user in the database; localStorage is the offline cache.
+function persistChats(list){ apiAuthFetch('/api/chats',{method:'PUT',body:JSON.stringify({convs:list})}).catch(()=>{}); }
 function mergeConvs(a,b){
   const byId={};
   [...(a||[]),...(b||[])].forEach(c=>{ if(!c||!c.id) return; const ex=byId[c.id]; if(!ex || (c.ts||0)>=(ex.ts||0)) byId[c.id]=c; });
   return Object.values(byId).sort((x,y)=>(y.ts||0)-(x.ts||0));
 }
 // On sign-in, pull this user's saved conversations and merge them with local ones.
-async function loadUserChats(uid){
-  if(!(window.ARIA_FB && window.ARIA_FB.configured)) return;
+async function loadUserChats(){
   try{
-    const cloud=await window.ARIA_FB.loadChats(uid);
-    const merged=mergeConvs(loadConvs(), cloud||[]);
+    const r=await apiAuthFetch('/api/chats'); if(!r||!r.ok) return;
+    const d=await r.json(); const cloud=Array.isArray(d.convs)?d.convs:[];
+    const merged=mergeConvs(loadConvs(), cloud);
     LS.set('aria_convs',JSON.stringify(merged)); renderSidebar();
     persistChats(merged);
   }catch(e){}
@@ -1621,39 +1594,45 @@ async function ddgSearch(query){
 
 </script>
 
-<!-- Firebase: auth + per-user memory. Configured via server env vars (/api/config). -->
-<script type="module">
+<!-- Auth0 login. Configured via server env vars (/api/config). Data lives in our API. -->
+<script src="https://cdn.auth0.com/js/auth0-spa-js/2.1/auth0-spa-js.production.js"></script>
+<script>
 (async () => {
   let cfg = null;
-  try { cfg = (await (await fetch('/api/config')).json()).firebase; } catch (e) {}
-  if (!cfg) { window.ARIA_FB = { configured:false }; if (window.onAriaUser) window.onAriaUser(null); return; }
+  try { cfg = (await (await fetch('/api/config')).json()).auth0; } catch (e) {}
+  if (!cfg || !cfg.domain || !cfg.clientId || !window.auth0) {
+    window.ARIA_AUTH = { configured:false };
+    if (window.onAriaUser) window.onAriaUser(null);
+    return;
+  }
   try {
-    const V = '10.12.5';
-    const { initializeApp } = await import(`https://www.gstatic.com/firebasejs/${V}/firebase-app.js`);
-    const { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword,
-            signOut, GoogleAuthProvider, signInWithPopup, setPersistence, browserLocalPersistence, updateProfile }
-      = await import(`https://www.gstatic.com/firebasejs/${V}/firebase-auth.js`);
-    const { getFirestore, doc, getDoc, setDoc }
-      = await import(`https://www.gstatic.com/firebasejs/${V}/firebase-firestore.js`);
-    const auth = getAuth(initializeApp(cfg));
-    const db = getFirestore();
-    try { await setPersistence(auth, browserLocalPersistence); } catch (e) {}
-    window.ARIA_FB = {
+    const client = await auth0.createAuth0Client({
+      domain: cfg.domain,
+      clientId: cfg.clientId,
+      authorizationParams: { redirect_uri: window.location.origin },
+      cacheLocation: 'localstorage',
+      useRefreshTokens: true,
+    });
+    if (location.search.includes('code=') && location.search.includes('state=')) {
+      try { await client.handleRedirectCallback(); } catch (e) {}
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+    window.ARIA_AUTH = {
       configured: true,
-      signInEmail: (e,p) => signInWithEmailAndPassword(auth, e, p),
-      signUpEmail: (e,p) => createUserWithEmailAndPassword(auth, e, p),
-      signInGoogle: () => signInWithPopup(auth, new GoogleAuthProvider()),
-      signOut: () => signOut(auth),
-      updateName: (name) => updateProfile(auth.currentUser, { displayName: name }),
-      loadMemory: async (uid) => { const s = await getDoc(doc(db, 'memories', uid)); return s.exists() ? (s.data().facts || []) : []; },
-      saveMemory: async (uid, facts) => { await setDoc(doc(db, 'memories', uid), { facts, updated: Date.now() }); },
-      loadChats: async (uid) => { const s = await getDoc(doc(db, 'chats', uid)); return s.exists() ? (s.data().convs || []) : []; },
-      saveChats: async (uid, convs) => { await setDoc(doc(db, 'chats', uid), { convs, updated: Date.now() }); },
+      login:  () => client.loginWithRedirect({ authorizationParams: { screen_hint: 'login' } }),
+      signup: () => client.loginWithRedirect({ authorizationParams: { screen_hint: 'signup' } }),
+      logout: () => client.logout({ logoutParams: { returnTo: window.location.origin } }),
+      getToken: async () => {
+        try { await client.getTokenSilently(); } catch (e) {}
+        try { const c = await client.getIdTokenClaims(); return c && c.__raw; } catch (e) { return null; }
+      },
     };
-    onAuthStateChanged(auth, (user) => { if (window.onAriaUser) window.onAriaUser(user); });
+    const isAuth = await client.isAuthenticated();
+    const user = isAuth ? await client.getUser() : null;
+    if (window.onAriaUser) window.onAriaUser(user);
   } catch (e) {
-    console.error('Firebase init failed:', e);
-    window.ARIA_FB = { configured:false };
+    console.error('Auth0 init failed:', e);
+    window.ARIA_AUTH = { configured:false };
     if (window.onAriaUser) window.onAriaUser(null);
   }
 })();

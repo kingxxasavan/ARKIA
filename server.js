@@ -1,25 +1,47 @@
-// ARIA — backend proxy server
-// Set API keys as environment variables (Vercel/host dashboard):
-//   ANTHROPIC_KEY, OPENAI_KEY, OLLAMA_KEY, OPENROUTER_KEY
+// ARIA — backend proxy + per-user data API
+// Env vars (set in your host dashboard, e.g. Vercel → Settings → Environment Variables):
+//   AI keys:   ANTHROPIC_KEY, OPENAI_KEY, OLLAMA_KEY, OPENROUTER_KEY
+//   Auth0:     AUTH0_DOMAIN, AUTH0_CLIENT_ID
+//   Database:  KV_REST_API_URL + KV_REST_API_TOKEN  (or UPSTASH_REDIS_REST_URL/TOKEN)
 
 const express = require('express');
 const path    = require('path');
-const fs      = require('fs');
 const app     = express();
 
-// Memory store — a JSON file fallback (per-user memory lives in Firebase).
-const MEMORY_FILE = process.env.MEMORY_FILE || path.join(__dirname, 'data', 'memory.json');
+// ── Storage: Upstash Redis (Vercel Marketplace) ────────────────────────────
+const REDIS_URL   = process.env.KV_REST_API_URL   || process.env.UPSTASH_REDIS_REST_URL   || '';
+const REDIS_TOKEN = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN || '';
+let redis = null;
+if (REDIS_URL && REDIS_TOKEN) {
+  try { const { Redis } = require('@upstash/redis'); redis = new Redis({ url: REDIS_URL, token: REDIS_TOKEN }); }
+  catch (e) { console.error('Redis init failed:', e.message); }
+}
 
-function readMemory() {
-  try { return JSON.parse(fs.readFileSync(MEMORY_FILE, 'utf8')); }
-  catch { return { version: 1, facts: [], updated: null }; }
+// ── Auth: verify Auth0 ID tokens (RS256 via the tenant JWKS) ────────────────
+const AUTH0_DOMAIN    = process.env.AUTH0_DOMAIN || '';
+const AUTH0_CLIENT_ID = process.env.AUTH0_CLIENT_ID || '';
+let _jose, _jwks;
+async function getJose() { if (!_jose) _jose = await import('jose'); return _jose; }
+async function userFromReq(req) {
+  if (!AUTH0_DOMAIN || !AUTH0_CLIENT_ID) return null;
+  const m = (req.headers.authorization || '').match(/^Bearer (.+)$/i);
+  if (!m) return null;
+  try {
+    const { jwtVerify, createRemoteJWKSet } = await getJose();
+    if (!_jwks) _jwks = createRemoteJWKSet(new URL(`https://${AUTH0_DOMAIN}/.well-known/jwks.json`));
+    const { payload } = await jwtVerify(m[1], _jwks, {
+      issuer: `https://${AUTH0_DOMAIN}/`,
+      audience: AUTH0_CLIENT_ID,
+    });
+    return payload.sub || null;
+  } catch (e) { return null; }
 }
-function writeMemory(facts) {
-  const data = { version: 1, facts, updated: new Date().toISOString() };
-  fs.mkdirSync(path.dirname(MEMORY_FILE), { recursive: true });
-  fs.writeFileSync(MEMORY_FILE, JSON.stringify(data, null, 2));
-  return data;
+async function requireUser(req, res) {
+  const sub = await userFromReq(req);
+  if (!sub) { res.status(401).json({ error: 'unauthorized' }); return null; }
+  return sub;
 }
+
 function cleanFacts(input) {
   const arr = Array.isArray(input) ? input : Array.isArray(input?.facts) ? input.facts : [];
   const seen = new Set(), out = [];
@@ -42,6 +64,11 @@ const PROVIDERS = {
   openrouter: { base: 'https://openrouter.ai/api',  keyEnv: 'OPENROUTER_KEY', auth: 'bearer'    },
 };
 
+// Public client config — only exposes Auth0's public web values when set.
+app.get('/api/config', (_req, res) => {
+  res.json({ auth0: (AUTH0_DOMAIN && AUTH0_CLIENT_ID) ? { domain: AUTH0_DOMAIN, clientId: AUTH0_CLIENT_ID } : null });
+});
+
 // Which providers have keys configured
 app.get('/api/status', (_req, res) => {
   const status = {};
@@ -50,31 +77,52 @@ app.get('/api/status', (_req, res) => {
   res.json(status);
 });
 
-// ── Public client config (Firebase web config from env vars) ───────────────
-app.get('/api/config', (_req, res) => {
-  const fb = {
-    apiKey:            process.env.FIREBASE_API_KEY || '',
-    authDomain:        process.env.FIREBASE_AUTH_DOMAIN || '',
-    projectId:         process.env.FIREBASE_PROJECT_ID || '',
-    appId:             process.env.FIREBASE_APP_ID || '',
-    storageBucket:     process.env.FIREBASE_STORAGE_BUCKET || '',
-    messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID || '',
-  };
-  res.json({ firebase: fb.apiKey ? fb : null });
+// ── Per-user data (Auth0-gated, stored in Redis) ────────────────────────────
+app.get('/api/memory', async (req, res) => {
+  const sub = await requireUser(req, res); if (!sub) return;
+  if (!redis) return res.json({ facts: [] });
+  const facts = await redis.get(`memory:${sub}`);
+  res.json({ facts: Array.isArray(facts) ? facts : [] });
+});
+app.put('/api/memory', async (req, res) => {
+  const sub = await requireUser(req, res); if (!sub) return;
+  if (!redis) return res.status(503).json({ error: 'storage not configured' });
+  const facts = cleanFacts(req.body);
+  try { await redis.set(`memory:${sub}`, facts); res.json({ facts }); }
+  catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// ── Long-term memory (file fallback; primary store is Firebase) ─────────────
-app.get('/api/memory', (_req, res) => {
-  res.json(readMemory());
+app.get('/api/chats', async (req, res) => {
+  const sub = await requireUser(req, res); if (!sub) return;
+  if (!redis) return res.json({ convs: [] });
+  const convs = await redis.get(`chats:${sub}`);
+  res.json({ convs: Array.isArray(convs) ? convs : [] });
 });
-app.put('/api/memory', (req, res) => {
-  try { res.json(writeMemory(cleanFacts(req.body))); }
+app.put('/api/chats', async (req, res) => {
+  const sub = await requireUser(req, res); if (!sub) return;
+  if (!redis) return res.status(503).json({ error: 'storage not configured' });
+  const convs = Array.isArray(req.body?.convs) ? req.body.convs : [];
+  try { await redis.set(`chats:${sub}`, convs); res.json({ ok: true }); }
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/profile', async (req, res) => {
+  const sub = await requireUser(req, res); if (!sub) return;
+  if (!redis) return res.json({ displayName: '' });
+  const p = (await redis.get(`profile:${sub}`)) || {};
+  res.json({ displayName: p.displayName || '' });
+});
+app.put('/api/profile', async (req, res) => {
+  const sub = await requireUser(req, res); if (!sub) return;
+  if (!redis) return res.status(503).json({ error: 'storage not configured' });
+  const displayName = String(req.body?.displayName || '').trim().slice(0, 60);
+  try { await redis.set(`profile:${sub}`, { displayName }); res.json({ displayName }); }
   catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 // ── Helper: stream a fetch response back to the client safely ──────────────
 async function pipeResponse(upstream, res, req) {
-  res.on('error', () => {});          // prevent unhandled error events on res
+  res.on('error', () => {});
   if (!upstream.body) { res.end(); return; }
   const reader = upstream.body.getReader();
   req.on('close', () => reader.cancel().catch(() => {}));
@@ -89,7 +137,7 @@ async function pipeResponse(upstream, res, req) {
   }
 }
 
-// ── Universal API proxy  /api/:provider/v1/... ─────────────────────────────
+// ── Universal AI provider proxy  /api/:provider/v1/... ──────────────────────
 app.all('/api/:provider/*', async (req, res) => {
   const cfg = PROVIDERS[req.params.provider];
   if (!cfg) return res.status(400).json({ error: 'Unknown provider: ' + req.params.provider });
@@ -133,6 +181,8 @@ if (require.main === module) {
   const PORT = process.env.PORT || 5000;
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`ARIA running on port ${PORT}`);
+    console.log(`  ${redis ? '✓' : '✗'} Redis storage`);
+    console.log(`  ${(AUTH0_DOMAIN && AUTH0_CLIENT_ID) ? '✓' : '✗'} Auth0`);
     for (const [id, cfg] of Object.entries(PROVIDERS))
       console.log(`  ${(process.env[cfg.keyEnv]||'').trim() ? '✓' : '✗'} ${id.padEnd(12)} (${cfg.keyEnv})`);
   });
