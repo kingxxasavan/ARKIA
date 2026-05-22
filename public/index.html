@@ -329,6 +329,21 @@
     #file-in { display: none; }
 
     @media(max-width:640px){ #sidebar{display:none} .slide-panel{left:0; width:100%} }
+
+    /* ── Login / signup overlay ── */
+    .auth-overlay{ position:fixed; inset:0; z-index:5000; background:var(--bg); display:flex; align-items:center; justify-content:center; padding:20px; }
+    .auth-card{ width:100%; max-width:340px; display:flex; flex-direction:column; gap:10px; text-align:center; }
+    .auth-logo{ width:46px; height:46px; border-radius:13px; background:var(--accent); color:#fff; font-weight:700; font-size:22px; display:flex; align-items:center; justify-content:center; margin:0 auto 4px; }
+    .auth-title{ font-size:19px; font-weight:600; color:var(--text-1); }
+    .auth-sub{ font-size:13px; color:var(--text-3); margin-bottom:8px; }
+    .auth-input{ width:100%; padding:10px 12px; background:var(--bg-input); border:1px solid var(--border-md); border-radius:10px; font-family:var(--font-sans); font-size:14px; color:var(--text-1); outline:none; box-sizing:border-box; }
+    .auth-input:focus{ border-color:var(--accent); }
+    .auth-btn{ width:100%; padding:10px; border-radius:10px; border:1px solid var(--border-md); background:var(--bg-card); color:var(--text-1); font-family:var(--font-sans); font-size:14px; font-weight:600; cursor:pointer; }
+    .auth-btn.primary{ background:var(--accent); color:#fff; border-color:var(--accent); }
+    .auth-btn:hover{ opacity:0.92; }
+    .auth-err{ font-size:12px; color:#d05858; min-height:14px; }
+    .auth-toggle{ font-size:12px; color:var(--text-3); margin-top:4px; }
+    .auth-toggle a{ color:var(--accent); cursor:pointer; text-decoration:underline; }
   </style>
 </head>
 <body>
@@ -374,12 +389,23 @@
     </div>
     <div class="sp-body">
 
+      <!-- Account (shown only when signed in) -->
+      <div class="sg" id="account-sg" style="display:none">
+        <div class="sg-label">Account</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:9px 11px;">
+          <span id="account-email" style="font-size:12px;color:var(--text-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">—</span>
+          <button class="btn" onclick="ariaSignOut()">Sign out</button>
+        </div>
+        <div class="sg-desc" style="margin-top:6px">Your memory is saved to your account and follows you across devices — no importing needed.</div>
+      </div>
+      <div class="sp-divider" id="account-divider" style="display:none"></div>
+
       <!-- Provider + Model -->
       <div class="sg">
         <div class="sg-label">Provider &amp; Model</div>
         <!-- Server mode banner (visible only on Replit/hosted) -->
         <div id="server-banner" style="display:none;background:rgba(74,180,100,0.1);border:1px solid rgba(74,180,100,0.3);border-radius:10px;padding:10px 12px;font-size:12px;line-height:1.55;color:var(--text-2);">
-          🚀 <strong>Server mode</strong> — running on Replit. API keys are in environment variables, not the browser. Go to <strong>Replit → Secrets</strong> to add keys.
+          🚀 <strong>Server mode</strong> — API keys live in the server's environment variables, not the browser. Add them in your host's dashboard (e.g. Vercel → Settings → Environment Variables).
           <div id="server-key-status" style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px;font-size:11px;"></div>
         </div>
 
@@ -610,6 +636,21 @@
 <div id="toast"></div>
 <input type="file" id="file-in" accept="image/*,.pdf" multiple onchange="onFiles(event)" />
 
+<!-- Login / signup overlay (shown only when accounts are configured and nobody is signed in) -->
+<div id="auth-overlay" class="auth-overlay" style="display:none">
+  <div class="auth-card">
+    <div class="auth-logo">A</div>
+    <div class="auth-title" id="auth-title">Welcome back</div>
+    <div class="auth-sub">Sign in so your memory and preferences follow you everywhere.</div>
+    <input id="auth-email" class="auth-input" type="email" placeholder="Email" autocomplete="email">
+    <input id="auth-pass" class="auth-input" type="password" placeholder="Password" autocomplete="current-password" onkeydown="if(event.key==='Enter')ariaAuthSubmit()">
+    <div class="auth-err" id="auth-err"></div>
+    <button class="auth-btn primary" id="auth-submit" onclick="ariaAuthSubmit()">Sign in</button>
+    <button class="auth-btn" onclick="ariaGoogle()">Continue with Google</button>
+    <div class="auth-toggle" id="auth-toggle">New to ARIA? <a onclick="ariaAuthToggle()">Create an account</a></div>
+  </div>
+</div>
+
 <script>const LS={ get(k){try{return localStorage.getItem(k);}catch{return null;}}, set(k,v){try{localStorage.setItem(k,v);}catch{}}, rm(k){try{localStorage.removeItem(k);}catch{}} };
 // SERVER_MODE = running on Replit/any web server. API keys live in env vars, not the browser.
 // LOCAL_MODE  = opened as file:// — keys in localStorage, direct API calls.
@@ -800,25 +841,27 @@ function deleteCustomFeature(id){
 //  MEMORY ("learns about you")
 // ════════════════════════════════════════════════
 function loadMemory(){ try{ return JSON.parse(LS.get('aria_memory')||'[]'); }catch{ return []; } }
-function saveMemory(arr){ LS.set('aria_memory',JSON.stringify(arr)); renderMemory(); if(featOpen)renderFeatures(); syncMemoryToServer(arr); }
-// Server is the primary store; browser localStorage is the always-available fallback.
-function syncMemoryToServer(arr){
-  if(!SERVER_MODE) return;
-  fetch('/api/memory',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({facts:arr})}).catch(()=>{});
+function saveMemory(arr){ LS.set('aria_memory',JSON.stringify(arr)); renderMemory(); if(featOpen)renderFeatures(); persistMemory(arr); }
+// When signed in, memory is persisted per-user in Firebase; localStorage is the offline cache.
+function persistMemory(arr){
+  if(window.ARIA_UID && window.ARIA_FB && window.ARIA_FB.configured){
+    window.ARIA_FB.saveMemory(window.ARIA_UID, arr).catch(()=>{});
+  }
 }
 function mergeFacts(base,incoming){
   const seen=new Set(base.map(f=>f.toLowerCase())); const out=[...base]; let added=0;
   (incoming||[]).forEach(f=>{ if(typeof f==='string'&&f.trim()&&!seen.has(f.toLowerCase())){ out.push(f.trim()); seen.add(f.toLowerCase()); added++; } });
   return {out,added};
 }
-function loadMemoryFromServer(){
-  if(!SERVER_MODE) return;
-  fetch('/api/memory').then(r=>r.json()).then(d=>{
-    const server=Array.isArray(d)?d:(Array.isArray(d.facts)?d.facts:[]);
-    const {out,added}=mergeFacts(loadMemory(),server);
+// On sign-in, pull this user's saved memory and merge it with anything stored locally.
+async function loadUserMemory(uid){
+  if(!(window.ARIA_FB && window.ARIA_FB.configured)) return;
+  try{
+    const cloud=await window.ARIA_FB.loadMemory(uid);
+    const {out,added}=mergeFacts(loadMemory(), cloud||[]);
     LS.set('aria_memory',JSON.stringify(out)); renderMemory(); if(featOpen)renderFeatures();
-    if(added) syncMemoryToServer(out); // push any local-only facts up so the file stays authoritative
-  }).catch(()=>{});
+    if(added) persistMemory(out);
+  }catch(e){}
 }
 function exportMemory(){
   const data={ version:1, app:'ARIA', exported:new Date().toISOString(), facts:loadMemory() };
@@ -845,6 +888,70 @@ function importMemoryFile(input){
   };
   reader.readAsText(file);
 }
+// ════════════════════════════════════════════════
+//  ACCOUNTS (Firebase auth — set up by the module script below)
+// ════════════════════════════════════════════════
+let authMode='signin';
+window.ARIA_UID=null;
+function ariaAuthToggle(){
+  authMode = authMode==='signin'?'signup':'signin';
+  document.getElementById('auth-title').textContent = authMode==='signin'?'Welcome back':'Create your account';
+  document.getElementById('auth-submit').textContent = authMode==='signin'?'Sign in':'Sign up';
+  document.getElementById('auth-toggle').innerHTML = authMode==='signin'
+    ? 'New to ARIA? <a onclick="ariaAuthToggle()">Create an account</a>'
+    : 'Already have an account? <a onclick="ariaAuthToggle()">Sign in</a>';
+  document.getElementById('auth-err').textContent='';
+}
+async function ariaAuthSubmit(){
+  const email=document.getElementById('auth-email').value.trim();
+  const pass=document.getElementById('auth-pass').value;
+  const err=document.getElementById('auth-err'); err.textContent='';
+  if(!email||!pass){ err.textContent='Enter your email and password.'; return; }
+  if(!(window.ARIA_FB&&window.ARIA_FB.configured)){ err.textContent='Accounts are not configured on this server.'; return; }
+  const btn=document.getElementById('auth-submit'); btn.disabled=true; const t=btn.textContent; btn.textContent='…';
+  try{
+    if(authMode==='signin') await window.ARIA_FB.signInEmail(email,pass);
+    else await window.ARIA_FB.signUpEmail(email,pass);
+  }catch(e){ err.textContent=ariaAuthErr(e); }
+  btn.disabled=false; btn.textContent=t;
+}
+async function ariaGoogle(){
+  const err=document.getElementById('auth-err'); err.textContent='';
+  if(!(window.ARIA_FB&&window.ARIA_FB.configured)){ err.textContent='Accounts are not configured on this server.'; return; }
+  try{ await window.ARIA_FB.signInGoogle(); }catch(e){ err.textContent=ariaAuthErr(e); }
+}
+function ariaSignOut(){ if(window.ARIA_FB&&window.ARIA_FB.configured) window.ARIA_FB.signOut().catch(()=>{}); }
+function ariaAuthErr(e){
+  const c=(e&&e.code)||'';
+  if(c.includes('invalid-credential')||c.includes('wrong-password')||c.includes('user-not-found')) return 'Wrong email or password.';
+  if(c.includes('email-already-in-use')) return 'That email already has an account — sign in instead.';
+  if(c.includes('weak-password')) return 'Password should be at least 6 characters.';
+  if(c.includes('invalid-email')) return 'That email looks invalid.';
+  if(c.includes('popup-closed')||c.includes('cancelled-popup')) return '';
+  return (e&&e.message)||'Something went wrong.';
+}
+// Called by the Firebase module on every auth-state change (and once if unconfigured).
+window.onAriaUser=function(user){
+  const overlay=document.getElementById('auth-overlay');
+  const accSg=document.getElementById('account-sg'), accDiv=document.getElementById('account-divider');
+  if(!(window.ARIA_FB&&window.ARIA_FB.configured)){
+    if(overlay) overlay.style.display='none';
+    if(accSg) accSg.style.display='none'; if(accDiv) accDiv.style.display='none';
+    return;
+  }
+  if(user){
+    window.ARIA_UID=user.uid;
+    if(overlay) overlay.style.display='none';
+    if(accSg){ accSg.style.display=''; document.getElementById('account-email').textContent=user.email||'Signed in'; }
+    if(accDiv) accDiv.style.display='';
+    loadUserMemory(user.uid);
+  }else{
+    window.ARIA_UID=null;
+    if(overlay) overlay.style.display='flex';
+    if(accSg) accSg.style.display='none'; if(accDiv) accDiv.style.display='none';
+  }
+};
+
 function renderMemory(){
   const el=document.getElementById('mem-list'); if(!el) return;
   const mem=loadMemory(); el.innerHTML='';
@@ -963,7 +1070,6 @@ function buildWelcome(){
         `<span style="padding:2px 7px;border-radius:20px;background:${ok?'rgba(74,180,100,0.12)':'rgba(180,74,74,0.12)'};border:1px solid ${ok?'rgba(74,180,100,0.25)':'rgba(180,74,74,0.25)'};color:${ok?'var(--green)':'#b05050'}">${ok?'✓':'✗'} ${labels[id]||id}</span>`
       ).join('');
     }).catch(()=>{});
-    loadMemoryFromServer();
   }
 
   // Anthropic key (local mode only)
@@ -1446,6 +1552,41 @@ async function ddgSearch(query){
 }
 
 
+</script>
+
+<!-- Firebase: auth + per-user memory. Configured via server env vars (/api/config). -->
+<script type="module">
+(async () => {
+  let cfg = null;
+  try { cfg = (await (await fetch('/api/config')).json()).firebase; } catch (e) {}
+  if (!cfg) { window.ARIA_FB = { configured:false }; if (window.onAriaUser) window.onAriaUser(null); return; }
+  try {
+    const V = '10.12.5';
+    const { initializeApp } = await import(`https://www.gstatic.com/firebasejs/${V}/firebase-app.js`);
+    const { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword,
+            signOut, GoogleAuthProvider, signInWithPopup, setPersistence, browserLocalPersistence }
+      = await import(`https://www.gstatic.com/firebasejs/${V}/firebase-auth.js`);
+    const { getFirestore, doc, getDoc, setDoc }
+      = await import(`https://www.gstatic.com/firebasejs/${V}/firebase-firestore.js`);
+    const auth = getAuth(initializeApp(cfg));
+    const db = getFirestore();
+    try { await setPersistence(auth, browserLocalPersistence); } catch (e) {}
+    window.ARIA_FB = {
+      configured: true,
+      signInEmail: (e,p) => signInWithEmailAndPassword(auth, e, p),
+      signUpEmail: (e,p) => createUserWithEmailAndPassword(auth, e, p),
+      signInGoogle: () => signInWithPopup(auth, new GoogleAuthProvider()),
+      signOut: () => signOut(auth),
+      loadMemory: async (uid) => { const s = await getDoc(doc(db, 'memories', uid)); return s.exists() ? (s.data().facts || []) : []; },
+      saveMemory: async (uid, facts) => { await setDoc(doc(db, 'memories', uid), { facts, updated: Date.now() }); },
+    };
+    onAuthStateChanged(auth, (user) => { if (window.onAriaUser) window.onAriaUser(user); });
+  } catch (e) {
+    console.error('Firebase init failed:', e);
+    window.ARIA_FB = { configured:false };
+    if (window.onAriaUser) window.onAriaUser(null);
+  }
+})();
 </script>
 </body>
 </html>
