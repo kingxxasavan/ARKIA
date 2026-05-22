@@ -677,7 +677,7 @@
       <div class="input-box">
         <textarea id="msg-in" rows="1" placeholder="Message ARIA…" onkeydown="onKey(event)" oninput="resize(this)"></textarea>
         <div class="in-bar">
-          <button class="in-icon" onclick="document.getElementById('file-in').click()" title="Attach">
+          <button class="in-icon" onclick="openFilePicker()" title="Attach a file, PDF, or image">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
           </button>
           <button class="tb-pill" id="pill-think" onclick="togglePill('think')" title="Extended thinking"><div class="pill-dot"></div>Think</button>
@@ -1476,20 +1476,49 @@ function togglePill(f){
 // ════════════════════════════════════════════════
 //  FILES + UI HELPERS
 // ════════════════════════════════════════════════
+// Does the current model accept images? Images are only offered when it does.
+function modelSupportsVision(){
+  const m=(activeModel()||'').toLowerCase();
+  if(provider==='anthropic') return true;
+  if(provider==='openai')    return /gpt-4o|gpt-4\.1|chatgpt-4o|o4|vision/.test(m);
+  if(provider==='openrouter')return /\b(vl|vision|llava|pixtral)\b|gpt-4o|gpt-4\.1|claude|gemini|qwen.*vl|llama-3\.2-(11|90)|grok.*vision|internvl|molmo/.test(m);
+  return /\bvl\b|vision|llava|minicpm-v|moondream/.test(m); // ollama (gemma, gpt-oss, etc. are text-only)
+}
+const CODE_EXT='.txt,.md,.markdown,.csv,.tsv,.json,.js,.jsx,.ts,.tsx,.py,.java,.c,.h,.cpp,.cc,.hpp,.cs,.go,.rb,.rs,.php,.html,.htm,.css,.scss,.xml,.yml,.yaml,.toml,.ini,.sh,.bash,.sql,.swift,.kt,.kts,.dart,.lua,.r,.pl,.vue,.svelte';
+function isTextFile(f){
+  if(f.type.startsWith('text/')) return true;
+  const ext='.'+(f.name.split('.').pop()||'').toLowerCase();
+  return CODE_EXT.split(',').includes(ext);
+}
+function readText(f){ return new Promise((r,j)=>{ const rd=new FileReader(); rd.onload=()=>r(rd.result); rd.onerror=j; rd.readAsText(f); }); }
+function openFilePicker(){
+  const inp=document.getElementById('file-in');
+  inp.accept=(modelSupportsVision()?'image/jpeg,image/png,image/gif,image/webp,':'')+'application/pdf,.pdf,'+CODE_EXT;
+  inp.click();
+}
 async function onFiles(e){
   const okImg=['image/jpeg','image/png','image/gif','image/webp'];
+  const vision=modelSupportsVision();
   for(const f of e.target.files){
-    const isImg=f.type.startsWith('image/');
-    if(isImg && !okImg.includes(f.type)){ showToast('Unsupported image ('+(f.type||'unknown')+'). Use JPG, PNG, GIF, or WebP — iPhone HEIC photos won’t work.'); continue; }
-    if(!isImg && f.type!=='application/pdf'){ showToast('Only images and PDFs are supported.'); continue; }
-    if(f.size > 18*1024*1024){ showToast(f.name+' is too large (max ~18 MB).'); continue; }
-    try{ const d=await toB64(f); attachments.push({name:f.name,type:f.type,data:d}); }
-    catch(_){ showToast('Could not read '+f.name+'.'); }
+    if(f.type.startsWith('image/')){
+      if(!vision){ showToast('This model can’t read images — switch to a vision model (Claude, GPT-4o, or qwen3-vl).'); continue; }
+      if(!okImg.includes(f.type)){ showToast('Unsupported image ('+(f.type||'unknown')+'). Use JPG, PNG, GIF, or WebP.'); continue; }
+      if(f.size>18*1024*1024){ showToast(f.name+' is too large (max ~18 MB).'); continue; }
+      try{ const d=await toB64(f); attachments.push({name:f.name,type:f.type,kind:'image',data:d}); }catch{ showToast('Could not read '+f.name+'.'); }
+    } else if(f.type==='application/pdf' || /\.pdf$/i.test(f.name)){
+      if(f.size>18*1024*1024){ showToast(f.name+' is too large (max ~18 MB).'); continue; }
+      try{ const d=await toB64(f); attachments.push({name:f.name,type:'application/pdf',kind:'pdf',data:d}); }catch{ showToast('Could not read '+f.name+'.'); }
+    } else if(isTextFile(f)){
+      if(f.size>1.5*1024*1024){ showToast(f.name+' is too large to read as text.'); continue; }
+      try{ const t=await readText(f); attachments.push({name:f.name,type:f.type||'text/plain',kind:'text',text:t}); }catch{ showToast('Could not read '+f.name+'.'); }
+    } else {
+      showToast('Unsupported file type: '+f.name);
+    }
   }
   renderChips(); e.target.value='';
 }
 function toB64(f){ return new Promise((r,j)=>{ const rd=new FileReader(); rd.onload=()=>r(rd.result.split(',')[1]); rd.onerror=j; rd.readAsDataURL(f); }); }
-function renderChips(){ const row=document.getElementById('chips-row'); row.innerHTML=''; attachments.forEach((a,i)=>{ const c=document.createElement('div'); c.className='f-chip'; c.innerHTML=`📄 ${esc(a.name)}<button onclick="rmF(${i})">✕</button>`; row.appendChild(c); }); }
+function renderChips(){ const row=document.getElementById('chips-row'); row.innerHTML=''; attachments.forEach((a,i)=>{ const icon=a.kind==='image'?'🖼':(a.kind==='text'?'📃':'📄'); const c=document.createElement('div'); c.className='f-chip'; c.innerHTML=`${icon} ${esc(a.name)}<button onclick="rmF(${i})">✕</button>`; row.appendChild(c); }); }
 function rmF(i){ attachments.splice(i,1); renderChips(); }
 function resize(el){ el.style.height='auto'; el.style.height=Math.min(el.scrollHeight,180)+'px'; }
 function onKey(e){ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); send(); } }
@@ -1558,8 +1587,9 @@ async function send(){
 
   const parts=[]; const fnames=attachments.map(a=>a.name).join(', ');
   for(const a of attachments){
-    if(a.type==='application/pdf')parts.push({type:'document',source:{type:'base64',media_type:'application/pdf',data:a.data}});
-    else if(a.type.startsWith('image/'))parts.push({type:'image',source:{type:'base64',media_type:a.type,data:a.data}});
+    if(a.kind==='pdf')parts.push({type:'document',source:{type:'base64',media_type:'application/pdf',data:a.data}});
+    else if(a.kind==='image')parts.push({type:'image',source:{type:'base64',media_type:a.type,data:a.data}});
+    else if(a.kind==='text')parts.push({type:'text',text:`[File: ${a.name}]\n\n\`\`\`\n${a.text}\n\`\`\``});
   }
   if(txt)parts.push({type:'text',text:txt});
 
