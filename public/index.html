@@ -246,7 +246,7 @@
     .tb-badge { font-size: 11px; padding: 3px 9px; border-radius: 20px; background: var(--bg-card); border: 1px solid var(--border); color: var(--text-3); font-weight: 500; transition: all 0.15s; }
     .tb-badge.on { background: var(--accent-soft); border-color: rgba(204,122,58,0.25); color: var(--accent); }
 
-    #messages { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 0; scroll-behavior: smooth; }
+    #messages { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 0; }
     #messages::-webkit-scrollbar { width: 5px; }
     #messages::-webkit-scrollbar-track { background: transparent; }
     #messages::-webkit-scrollbar-thumb { background: var(--bg-card); border-radius: 3px; }
@@ -534,17 +534,6 @@
 
       <div class="sp-divider"></div>
 
-      <!-- CORS Proxy -->
-      <div class="sg">
-        <div class="sg-label">CORS Proxy (optional)</div>
-        <div class="sg-desc">Browsers often block ChatGPT and Ollama Cloud directly. If you hit a network error, route those two through a proxy. Leave blank for Claude / local Ollama.</div>
-        <input id="proxy-url" class="key-input" type="text" placeholder="https://your-proxy.com/?url=" oninput="onProxyInput(this.value)" />
-        <div class="sg-desc">Supports three styles: a <code class="inl">{url}</code> placeholder, a trailing <code class="inl">?url=</code> (target gets URL-encoded), or a plain prefix that's put in front of the request URL.</div>
-        <div class="key-st"><div class="key-st-dot" id="px-dot"></div><span class="key-st-txt" id="px-txt">No proxy — direct requests</span></div>
-      </div>
-
-      <div class="sp-divider"></div>
-
       <!-- Memory -->
       <div class="sg">
         <div class="sg-label">Memory — what ARIA knows about you</div>
@@ -578,7 +567,7 @@
       <!-- System prompt -->
       <div class="sg">
         <div class="sg-label">System Prompt</div>
-        <textarea id="sys-p" class="sp-textarea" placeholder="You are a helpful assistant…">You are ARIA, a helpful and knowledgeable AI assistant. Be clear, concise, and thoughtful. Use markdown when it helps.</textarea>
+        <textarea id="sys-p" class="sp-textarea" placeholder="You are a helpful assistant…">You are ARIA, a helpful, direct AI assistant. Match the length of your reply to the question — simple questions get a short, direct answer with no preamble, no bullet lists, and no unsolicited follow-up suggestions. Use headings, bullets, or step-by-step formatting only when the content genuinely needs structure (code, comparisons, multi-step tasks). Do not pad answers with extra caveats or "next steps" the user did not ask for. Use markdown only when it improves clarity.</textarea>
       </div>
 
     </div>
@@ -675,10 +664,14 @@ const MOON_ICON='<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>';
 
 // ── State ──────────────────────────────────────
 let history=[], attachments=[], busy=false, settOpen=false, featOpen=false;
-let feats={search:true, think:false, memory:true, autolearn:false};
+let feats={search:true, think:false, memory:true, autolearn:true};
 let currentConvId=null;
 let provider = LS.get('aria_provider') || 'anthropic'; // anthropic | openai | ollama
 let ollamaMode = LS.get('aria_ollama_mode') || 'local';  // local | cloud
+
+// Smart auto-scroll: stick to the bottom while streaming, but pause if the user scrolls up.
+let userPinnedUp=false;
+function scrollMsgs(force){ const el=document.getElementById('messages'); if(!el) return; if(force){ userPinnedUp=false; } if(force||!userPinnedUp) el.scrollTop=el.scrollHeight; }
 
 // ════════════════════════════════════════════════
 //  FEATURES (importable tools the model can call)
@@ -924,7 +917,7 @@ async function learnFromConversation(manual){
     return (m.role==='user'?'User: ':'Assistant: ')+c;
   }).join('\n');
   const existing=loadMemory();
-  const prompt=`From the conversation below, extract durable facts worth remembering long-term about the USER (preferences, name, projects, goals, constraints, recurring details). Ignore one-off questions and anything about the assistant.\n\nReturn ONLY a JSON array of short fact strings (max 8). If nothing new, return [].\n\nAlready known (do not repeat):\n${existing.map(f=>'- '+f).join('\n')||'(none)'}\n\nConversation:\n${transcript}`;
+  const prompt=`You maintain a long-term profile of the USER. Read the conversation and pull out only durable facts worth keeping: their preferences, the tasks and projects they are working on, their goals, tools they use, and lasting constraints. Each fact must be one short standalone sentence (e.g. "Working on an app called Vex", "Prefers concise replies without bullet points", "Uses Python for data work").\n\nDo NOT save: answers to one-off questions, anything that only matters for this single chat, generic filler, or anything about the assistant.\n\nReturn ONLY a JSON array of fact strings (max 6 new). If there is nothing durable to save, return [].\n\nAlready stored (skip duplicates or rephrasings of these):\n${existing.map(f=>'- '+f).join('\n')||'(none)'}\n\nConversation:\n${transcript}`;
   try{
     const raw=await quickComplete(prompt);
     const match=raw.match(/\[[\s\S]*\]/);
@@ -987,7 +980,7 @@ function loadConv(id){
     if(m.role==='user'){ const txt=typeof m.content==='string'?m.content:(m.content.find(b=>b.type==='text')?.text||''); addHuman(txt,null,true); }
     else { const txt=typeof m.content==='string'?m.content:''; const b=addAI(true); b.innerHTML=md(txt); }
   });
-  msgs.scrollTop=msgs.scrollHeight; renderSidebar();
+  scrollMsgs(true); renderSidebar();
 }
 function deleteConv(id,e){
   e.stopPropagation();
@@ -1035,8 +1028,6 @@ function buildWelcome(){
   const om=LS.get('aria_model_openai');    if(om) document.getElementById('openai-model').value=om;
   const rm=LS.get('aria_model_openrouter'); if(rm){ const sel=document.getElementById('or-model'); if(sel) sel.value=rm; }
   const cm=LS.get('ollama_cloud_model');   if(cm) document.getElementById('ollama-cloud-model-input').value=cm;
-  // restore proxy
-  const px=LS.get('aria_proxy')||''; if(px){ document.getElementById('proxy-url').value=px; setPxStatus(true); }
   // restore feature toggles
   const savedFeats=LS.get('aria_feat_flags');
   if(savedFeats){ try{ Object.assign(feats,JSON.parse(savedFeats)); }catch{} }
@@ -1052,6 +1043,8 @@ function buildWelcome(){
   renderMemory();
   renderFeatures();
   renderSidebar();
+  const _msgsEl=document.getElementById('messages');
+  if(_msgsEl) _msgsEl.addEventListener('scroll',()=>{ userPinnedUp=(_msgsEl.scrollHeight-_msgsEl.scrollTop-_msgsEl.clientHeight)>80; });
   newChat();
 })();
 
@@ -1065,10 +1058,6 @@ function applyTheme(t){
   const btn=document.getElementById('theme-btn'); if(btn) btn.title = t==='dark'?'Switch to light mode':'Switch to dark mode';
 }
 function toggleTheme(){ applyTheme(document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark'); }
-
-// ── Proxy field ────────────────────────────────
-function onProxyInput(v){ v=v.trim(); try{ v?LS.set('aria_proxy',v):LS.rm('aria_proxy'); }catch(_){} setPxStatus(!!v); }
-function setPxStatus(on){ document.getElementById('px-dot').className='key-st-dot'+(on?' ok':''); const t=document.getElementById('px-txt'); t.textContent=on?'Proxy active for ChatGPT & Ollama Cloud':'No proxy — direct requests'; t.style.color=on?'#4ade80':'var(--text-3)'; }
 
 // ── Safe localStorage wrapper ──────────────────
 
@@ -1145,16 +1134,9 @@ function onCloudModelInput(val){
   onModel();
 }
 
-// ── Proxy helpers (route ChatGPT / Ollama Cloud around CORS) ──
-function proxyURL(){ return (LS.get('aria_proxy')||'').trim(); }
-function applyProxy(url){
-  const p=proxyURL(); if(!p) return url;
-  if(p.includes('{url}')) return p.replace('{url}',encodeURIComponent(url));
-  if(/[?&=]$/.test(p)) return p+encodeURIComponent(url);
-  return p+url;
-}
-// Build the final fetch URL, applying the proxy only when the target wants it
-function endpoint(target,path){ const u=target.base+path; return target.proxy?applyProxy(u):u; }
+// CORS proxy removed — all hosted calls go through the server, so requests are direct.
+function applyProxy(url){ return url; }
+function endpoint(target,path){ return target.base+path; }
 
 // What base URL + headers to use for OpenAI-compatible providers
 function openAICompatTarget(){
@@ -1193,7 +1175,7 @@ async function testOllamaCloud(){
     dot.className='ollama-dot err'; const msg=err.message||'';
     if(msg.includes('401')||/unauthorized/i.test(msg)) lbl.textContent='Bad API key.';
     else if(msg.includes('404')||/not found/i.test(msg)) lbl.textContent='Model not found — check the name.';
-    else if(/failed to fetch|networkerror/i.test(msg)) lbl.textContent='CORS blocked — add a proxy URL in Settings → CORS Proxy.';
+    else if(/failed to fetch|networkerror/i.test(msg)) lbl.textContent='Network error — run ARIA on the server (Replit) so Ollama Cloud works without CORS issues.';
     else lbl.textContent='Failed: '+msg;
     lbl.style.color='#b83030'; console.error(err);
   }
@@ -1261,7 +1243,7 @@ function addHuman(txt,files,noAnim){
   const bub=document.createElement('div'); bub.className='h-bub';
   if(files){ const t=document.createElement('div'); t.className='attach-tag'; t.textContent='📎 '+files; bub.appendChild(t); }
   bub.insertAdjacentHTML('beforeend',esc(txt||'(file attached)').replace(/\n/g,'<br>'));
-  inner.appendChild(bub); row.appendChild(inner); msgs.appendChild(row); msgs.scrollTop=msgs.scrollHeight;
+  inner.appendChild(bub); row.appendChild(inner); msgs.appendChild(row); scrollMsgs(true);
 }
 function addAI(noAnim){
   const msgs=document.getElementById('messages');
@@ -1272,7 +1254,7 @@ function addAI(noAnim){
   const nm=document.createElement('div'); nm.className='ai-nm'; nm.textContent='ARIA';
   const body=document.createElement('div'); body.className='ai-body';
   if(!noAnim)body.innerHTML='<div class="typing"><span></span><span></span><span></span></div>';
-  col.appendChild(nm); col.appendChild(body); inner.appendChild(av); inner.appendChild(col); row.appendChild(inner); msgs.appendChild(row); msgs.scrollTop=msgs.scrollHeight; return body;
+  col.appendChild(nm); col.appendChild(body); inner.appendChild(av); inner.appendChild(col); row.appendChild(inner); msgs.appendChild(row); scrollMsgs(true); return body;
 }
 function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 function md(t){
@@ -1338,20 +1320,14 @@ async function send(){
     if(feats.autolearn) learnFromConversation(false);
   }catch(err){
     const msg=err.message||'Request failed.';
-    const isCors=/failed to fetch|networkerror|cors/i.test(msg);
-    const needsProxy=isCors&&(provider==='openai'||(provider==='ollama'&&ollamaMode==='cloud'));
-    const display=needsProxy
-      ? 'CORS blocked — open Settings and add a proxy URL under "CORS Proxy".'
-      : msg;
-    body.innerHTML=`<em style="color:#b83030">${esc(display)}</em>`;
-    if(needsProxy){ setTimeout(()=>openSettings(), 600); }
+    body.innerHTML=`<em style="color:#b83030">${esc(msg)}</em>`;
     console.error(err);
   }
-  busy=false; document.getElementById('send-btn').disabled=false; document.getElementById('messages').scrollTop=9999; inp.focus();
+  busy=false; document.getElementById('send-btn').disabled=false; scrollMsgs(); inp.focus();
 }
 
 function systemPrompt(){
-  const base=document.getElementById('sys-p').value.trim()||'You are ARIA, a helpful AI assistant.';
+  const base=document.getElementById('sys-p').value.trim()||'You are ARIA, a helpful, direct AI assistant. Match reply length to the question; keep simple answers short with no unsolicited follow-ups, and use lists or headings only when the content needs structure.';
   return base+`\nToday is ${new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}.`+memoryBlock();
 }
 
@@ -1416,7 +1392,7 @@ async function streamAnthropic(key,payload,body){
         if(evt.type==='content_block_start'&&evt.content_block?.type==='server_tool_use'){ searched=true; body.innerHTML='<div class="searching"><div class="sp"></div>Searching the web…</div>'; }
         if(evt.type==='content_block_delta'&&evt.delta?.type==='text_delta'){
           if(!started){ started=true; body.innerHTML=''; }
-          full+=evt.delta.text; body.innerHTML=md(full); document.getElementById('messages').scrollTop=9999;
+          full+=evt.delta.text; body.innerHTML=md(full); scrollMsgs();
         }
       }catch(_){}
     }
@@ -1488,7 +1464,7 @@ async function streamOpenAI(target,model,messages,body){
       if(!line.startsWith('data: '))continue; const raw=line.slice(6).trim(); if(raw==='[DONE]')continue;
       try{
         const evt=JSON.parse(raw); const delta=evt.choices?.[0]?.delta?.content;
-        if(delta){ if(!started){ started=true; body.innerHTML=''; } full+=delta; body.innerHTML=renderModelContent(full); document.getElementById('messages').scrollTop=9999; }
+        if(delta){ if(!started){ started=true; body.innerHTML=''; } full+=delta; body.innerHTML=renderModelContent(full); scrollMsgs(); }
       }catch(_){}
     }
   }
