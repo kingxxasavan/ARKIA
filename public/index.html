@@ -945,6 +945,7 @@ window.onAriaUser=function(user){
     if(accSg){ accSg.style.display=''; document.getElementById('account-email').textContent=user.email||'Signed in'; }
     if(accDiv) accDiv.style.display='';
     loadUserMemory(user.uid);
+    loadUserChats(user.uid);
   }else{
     window.ARIA_UID=null;
     if(overlay) overlay.style.display='flex';
@@ -1014,7 +1015,28 @@ async function quickComplete(promptText){
 // ════════════════════════════════════════════════
 function genId(){ return 'conv_'+Date.now()+'_'+Math.random().toString(36).slice(2,7); }
 function loadConvs(){ try{ return JSON.parse(LS.get('aria_convs')||'[]'); }catch{ return []; } }
-function saveConvs(list){ LS.set('aria_convs',JSON.stringify(list)); }
+function saveConvs(list){ LS.set('aria_convs',JSON.stringify(list)); persistChats(list); }
+// When signed in, chat history syncs per-user in Firebase; localStorage is the offline cache.
+function persistChats(list){
+  if(window.ARIA_UID && window.ARIA_FB && window.ARIA_FB.configured){
+    window.ARIA_FB.saveChats(window.ARIA_UID, list).catch(()=>{});
+  }
+}
+function mergeConvs(a,b){
+  const byId={};
+  [...(a||[]),...(b||[])].forEach(c=>{ if(!c||!c.id) return; const ex=byId[c.id]; if(!ex || (c.ts||0)>=(ex.ts||0)) byId[c.id]=c; });
+  return Object.values(byId).sort((x,y)=>(y.ts||0)-(x.ts||0));
+}
+// On sign-in, pull this user's saved conversations and merge them with local ones.
+async function loadUserChats(uid){
+  if(!(window.ARIA_FB && window.ARIA_FB.configured)) return;
+  try{
+    const cloud=await window.ARIA_FB.loadChats(uid);
+    const merged=mergeConvs(loadConvs(), cloud||[]);
+    LS.set('aria_convs',JSON.stringify(merged)); renderSidebar();
+    persistChats(merged);
+  }catch(e){}
+}
 function saveCurrentConv(title){
   if(!currentConvId||!history.length) return;
   const list=loadConvs(); const idx=list.findIndex(c=>c.id===currentConvId);
@@ -1579,6 +1601,8 @@ async function ddgSearch(query){
       signOut: () => signOut(auth),
       loadMemory: async (uid) => { const s = await getDoc(doc(db, 'memories', uid)); return s.exists() ? (s.data().facts || []) : []; },
       saveMemory: async (uid, facts) => { await setDoc(doc(db, 'memories', uid), { facts, updated: Date.now() }); },
+      loadChats: async (uid) => { const s = await getDoc(doc(db, 'chats', uid)); return s.exists() ? (s.data().convs || []) : []; },
+      saveChats: async (uid, convs) => { await setDoc(doc(db, 'chats', uid), { convs, updated: Date.now() }); },
     };
     onAuthStateChanged(auth, (user) => { if (window.onAriaUser) window.onAriaUser(user); });
   } catch (e) {
