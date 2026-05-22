@@ -229,13 +229,15 @@
     .model-sug:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
 
     /* Memory */
-    .mem-list { display: flex; flex-direction: column; gap: 6px; }
-    .mem-item { display: flex; align-items: flex-start; gap: 8px; background: var(--bg); border: 1px solid var(--border); border-radius: var(--r); padding: 8px 10px; }
+    .mem-list { display: flex; flex-direction: column; border: 1px solid var(--border-md); border-radius: 10px; background: var(--bg); overflow: hidden; }
+    .mem-list:empty { display: none; }
+    .mem-item { display: flex; align-items: flex-start; gap: 8px; background: none; border: none; border-bottom: 1px solid var(--border); padding: 9px 11px; }
+    .mem-item:last-child { border-bottom: none; }
     .mem-item .mem-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--accent); margin-top: 6px; flex-shrink: 0; }
     .mem-item .mem-txt { flex: 1; font-size: 12px; line-height: 1.5; color: var(--text-1); border: none; background: none; outline: none; font-family: var(--font-sans); resize: none; }
     .mem-item .mem-x { background: none; border: none; color: var(--text-3); cursor: pointer; font-size: 13px; line-height: 1; padding: 2px; border-radius: 4px; flex-shrink: 0; }
     .mem-item .mem-x:hover { color: #b83030; background: rgba(184,48,48,0.08); }
-    .mem-empty { font-size: 12px; color: var(--text-3); font-style: italic; padding: 4px 0; }
+    .mem-empty { font-size: 12px; color: var(--text-3); font-style: italic; padding: 10px 11px; }
     .mem-add { display: flex; gap: 6px; }
     .mem-add .key-input { flex: 1; }
     .mem-big { width: 100%; box-sizing: border-box; font-size: 15px; line-height: 1.45; padding: 12px 14px; resize: vertical; min-height: 52px; font-family: var(--font-sans); }
