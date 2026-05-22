@@ -556,7 +556,7 @@
             <div class="ollama-status"><div class="ollama-dot" id="ollama-dot"></div><span id="ollama-status-txt">Not connected</span></div>
           </div>
           <div id="ollama-cloud-section" style="display:none;flex-direction:column;gap:8px">
-            <div class="sg-desc">Ollama Cloud (ollama.com). On Replit this calls the API server-side — no CORS. Get a key at <code class="inl">ollama.com/settings/keys</code>.</div>
+            <div class="sg-desc">Ollama Cloud models — included free. Pick one below.</div>
             <input id="ollama-cloud-model-input" class="key-input" type="text" placeholder="e.g. gpt-oss:120b" oninput="onCloudModelInput(this.value)" />
             <div style="display:flex;flex-wrap:wrap;gap:5px">
               <button class="model-sug" onclick="pickCloudModel('gpt-oss:120b')">gpt-oss:120b</button>
@@ -571,17 +571,6 @@
               <button class="model-sug" onclick="pickCloudModel('minimax-m2')">minimax-m2</button>
               <button class="model-sug" onclick="pickCloudModel('deepseek-v3.1:671b-cloud')">deepseek-v3.1 (cloud)</button>
               <button class="model-sug" onclick="pickCloudModel('gpt-oss:120b-cloud')">gpt-oss:120b (cloud)</button>
-            </div>
-            <div class="local-key-fields">
-              <div class="key-wrap">
-                <input id="ollama-cloud-key" class="key-input" type="password" placeholder="Ollama Cloud API key" autocomplete="off" />
-                <button class="key-eye" onclick="toggleKey('ollama-cloud-key','eye-svg-oll')" title="Show / hide">
-                  <svg id="eye-svg-oll" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                </button>
-              </div>
-              <button class="fetch-btn" id="cloud-connect-btn" onclick="testOllamaCloud()" style="width:100%">Test Connection</button>
-              <div class="ollama-status"><div class="ollama-dot" id="ollama-dot-cloud"></div><span id="ollama-cloud-status" style="font-size:11px;color:var(--text-3)">Not connected</span></div>
-              <div class="sg-desc" id="hint-ollama"></div>
             </div>
           </div>
         </div>
@@ -1238,9 +1227,6 @@ function buildWelcome(){
   // OpenRouter key
   const rk=LS.get('openrouter_key'); if(rk){ document.getElementById('openrouter-key').value=rk; setORKS(true); }
   document.getElementById('openrouter-key').addEventListener('input',e=>{ const v=e.target.value.trim(); v?LS.set('openrouter_key',v):LS.rm('openrouter_key'); setORKS(!!v); });
-  // Ollama cloud key
-  const ck=LS.get('ollama_cloud_key'); if(ck) document.getElementById('ollama-cloud-key').value=ck;
-  document.getElementById('ollama-cloud-key').addEventListener('input',e=>{ const v=e.target.value.trim(); v?LS.set('ollama_cloud_key',v):LS.rm('ollama_cloud_key'); });
   // restore model selections
   const am=LS.get('aria_model_anthropic'); if(am) document.getElementById('model').value=am;
   const om=LS.get('aria_model_openai');    if(om) document.getElementById('openai-model').value=om;
@@ -1362,9 +1348,7 @@ function setOllamaMode(mode){
 }
 function pickCloudModel(name){ document.getElementById('ollama-cloud-model-input').value=name; onCloudModelInput(name); }
 function onCloudModelInput(val){
-  val=val.trim(); LS.set('ollama_cloud_model',val);
-  document.getElementById('ollama-dot-cloud').className='ollama-dot';
-  const lbl=document.getElementById('ollama-cloud-status'); lbl.textContent=val?'Model set — Test to verify':'Not connected'; lbl.style.color='var(--text-3)';
+  LS.set('ollama_cloud_model',(val||'').trim());
   onModel();
 }
 
@@ -1394,28 +1378,6 @@ function openAICompatTarget(){
   }
   const localBase=(document.getElementById('ollama-url').value||'http://localhost:11434').replace(/\/$/,'');
   return { base:localBase+'/v1', headers:{'Content-Type':'application/json'} };
-}
-
-async function testOllamaCloud(){
-  const model=(document.getElementById('ollama-cloud-model-input').value||'').trim();
-  const key=LS.get('ollama_cloud_key')||'';
-  const btn=document.getElementById('cloud-connect-btn'), dot=document.getElementById('ollama-dot-cloud'), lbl=document.getElementById('ollama-cloud-status');
-  if(!model){ lbl.textContent='Pick or type a model name first.'; lbl.style.color='#b83030'; return; }
-  if(!key){ lbl.textContent='Enter your Ollama Cloud API key first.'; lbl.style.color='#b83030'; return; }
-  btn.disabled=true; btn.textContent='Testing…'; dot.className='ollama-dot'; lbl.textContent='Connecting…'; lbl.style.color='var(--text-3)';
-  try{
-    const res=await fetch(applyProxy('https://ollama.com/v1/chat/completions'),{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},body:JSON.stringify({model,max_tokens:4,messages:[{role:'user',content:'hi'}],stream:false}),signal:AbortSignal.timeout(20000)});
-    if(!res.ok){ const e=await res.json().catch(()=>({})); throw new Error(e.error?.message||'HTTP '+res.status); }
-    dot.className='ollama-dot ok'; lbl.textContent='Connected — '+model; lbl.style.color='var(--green)'; onModel();
-  }catch(err){
-    dot.className='ollama-dot err'; const msg=err.message||'';
-    if(msg.includes('401')||/unauthorized/i.test(msg)) lbl.textContent='Bad API key.';
-    else if(msg.includes('404')||/not found/i.test(msg)) lbl.textContent='Model not found — check the name.';
-    else if(/failed to fetch|networkerror/i.test(msg)) lbl.textContent='Network error — run ARIA on the server (Replit) so Ollama Cloud works without CORS issues.';
-    else lbl.textContent='Failed: '+msg;
-    lbl.style.color='#b83030'; console.error(err);
-  }
-  btn.disabled=false; btn.textContent='Test Connection';
 }
 
 async function fetchOllamaModels(){
