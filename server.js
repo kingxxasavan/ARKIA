@@ -12,6 +12,9 @@ const app     = express();
 app.use(express.json({ limit: '20mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
+// The chat app lives at /app; the landing page is the homepage (/).
+app.get('/app', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'app.html')));
+
 // ── Provider registry ──────────────────────────────────────────────────────
 const PROVIDERS = {
   anthropic:  { base: 'https://api.anthropic.com',  keyEnv: 'ANTHROPIC_KEY',  auth: 'anthropic' },

@@ -76,6 +76,6 @@ otherwise you enter them in Settings.
 ---
 
 ## Notes
-- `index.html` and `public/index.html` are kept identical — `public/` is what Firebase Hosting serves.
+- The **landing page** is `index.html` (served at `/`); the **chat app** is `app.html` (served at `/app`). Root copies mirror the `public/` versions, which is what gets served.
 - Per-user data is stored as `memories/{uid}` and `chats/{uid}` in Firestore; local storage is the offline cache.
 - DRM streaming and a full in-app web browser are intentionally **not** included — this app is focused on AI.

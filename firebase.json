@@ -7,14 +7,17 @@
       "**/node_modules/**"
     ],
     "rewrites": [
+      { "source": "/app", "destination": "/app.html" },
       { "source": "**", "destination": "/index.html" }
     ],
     "headers": [
       {
         "source": "/index.html",
-        "headers": [
-          { "key": "Cache-Control", "value": "no-cache" }
-        ]
+        "headers": [ { "key": "Cache-Control", "value": "no-cache" } ]
+      },
+      {
+        "source": "/app.html",
+        "headers": [ { "key": "Cache-Control", "value": "no-cache" } ]
       }
     ]
   }
