@@ -950,10 +950,14 @@ function saveMemory(arr){ LS.set('aria_memory',JSON.stringify(arr)); renderMemor
 function saveLearned(arr){ LS.set('aria_learned',JSON.stringify(arr)); renderLearned(); persistMemoryAll(); }
 function saveNotes(arr){ LS.set('aria_notes',JSON.stringify(arr)); renderNotes(); persistMemoryAll(); }
 // Persist all stores to the account (Firestore); localStorage is the offline cache.
+let _memSyncWarned=false;
 function persistMemoryAll(){
-  if(window.ARIA_UID && window.ARIA_FB && window.ARIA_FB.configured){
-    window.ARIA_FB.saveMemory(window.ARIA_UID, { facts: loadMemory(), learned: loadLearned(), notes: loadNotes() }).catch(()=>{});
-  }
+  if(!(window.ARIA_UID && window.ARIA_FB && window.ARIA_FB.configured)) return;
+  window.ARIA_FB.saveMemory(window.ARIA_UID, { facts: loadMemory(), learned: loadLearned(), notes: loadNotes() })
+    .catch(err=>{
+      console.warn('Memory cloud-save failed:', err);
+      if(!_memSyncWarned){ _memSyncWarned=true; showToast('Couldn’t sync to your account. In Firebase, enable Firestore and publish the security rules.'); }
+    });
 }
 function mergeFacts(base,incoming){
   const seen=new Set(base.map(f=>f.toLowerCase())); const out=[...base]; let added=0;
@@ -971,7 +975,7 @@ async function loadUserMemory(uid){
     LS.set('aria_memory',JSON.stringify(m.out)); LS.set('aria_learned',JSON.stringify(l.out)); LS.set('aria_notes',JSON.stringify(n.out));
     renderMemory(); renderLearned(); renderNotes(); if(featOpen)renderFeatures();
     if(m.added||l.added||n.added) persistMemoryAll();
-  }catch(e){}
+  }catch(e){ console.warn('Memory cloud-load failed:', e); }
 }
 // ════════════════════════════════════════════════
 //  ACCOUNTS (Firebase auth + Firestore — set up by the module script below)
