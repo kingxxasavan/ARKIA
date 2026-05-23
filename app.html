@@ -735,6 +735,15 @@
     <div class="auth-toggle" id="auth-toggle">New to ARIA? <a onclick="ariaAuthToggle()">Create an account</a></div>
     <a class="auth-home" href="/">← Back to home</a>
   </div>
+  <div class="auth-card" id="verify-card" style="display:none">
+    <div class="auth-logo">A</div>
+    <div class="auth-title">Verify your email</div>
+    <div class="auth-sub">We sent a verification link to <strong id="verify-email">your email</strong>. Click it, then continue. (Check spam too.)</div>
+    <button class="auth-btn primary" id="verify-check" onclick="ariaCheckVerification()">I've verified</button>
+    <button class="auth-btn" onclick="ariaResendVerification()">Resend email</button>
+    <div class="auth-toggle"><a onclick="ariaSignOut()">Use a different account</a></div>
+    <a class="auth-home" href="/">← Back to home</a>
+  </div>
 </div>
 
 <!-- Pick-a-username modal (shown right after creating an account) -->
@@ -782,10 +791,10 @@ const MOON_ICON='<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>';
 
 // ── State ──────────────────────────────────────
 let history=[], attachments=[], busy=false, settOpen=false, featOpen=false;
-let feats={search:true, think:false, memory:true, autolearn:true};
+let feats={search:false, think:false, memory:true, autolearn:true};
 let currentConvId=null;
-let provider = LS.get('aria_provider') || 'anthropic'; // anthropic | openai | ollama
-let ollamaMode = LS.get('aria_ollama_mode') || 'local';  // local | cloud
+let provider = LS.get('aria_provider') || 'ollama'; // anthropic | openai | ollama
+let ollamaMode = LS.get('aria_ollama_mode') || 'cloud';  // local | cloud
 
 // Smart auto-scroll: stick to the bottom while streaming, but pause if the user scrolls up.
 let userPinnedUp=false;
@@ -1024,7 +1033,11 @@ async function ariaAuthSubmit(){
   const btn=document.getElementById('auth-submit'); btn.disabled=true; const t=btn.textContent; btn.textContent='…';
   try{
     if(authMode==='signin'){ await window.ARIA_FB.signInEmail(email,pass); }
-    else { await window.ARIA_FB.signUpEmail(email,pass); window._ariaNewSignup=true; }
+    else {
+      await window.ARIA_FB.signUpEmail(email,pass); window._ariaNewSignup=true;
+      try{ await window.ARIA_FB.sendVerification(); }catch(_){}
+      showToast('Account created — verify your email to continue.', false);
+    }
   }catch(e){ err.textContent=ariaAuthErr(e); }
   btn.disabled=false; btn.textContent=t;
 }
@@ -1078,13 +1091,58 @@ function ariaAuthErr(e){
   if(c.includes('popup-closed')||c.includes('cancelled-popup')) return '';
   return (e&&e.message)||'Something went wrong.';
 }
-// Show the auth gate: 'hidden' (into the app), 'login' (sign-in card), or 'loading'.
+// Show the auth gate: 'hidden' (into the app), 'login', 'verify', or 'loading'.
 function showAuthGate(state){
-  const ov=document.getElementById('auth-overlay'), ld=document.getElementById('auth-loading'), cd=document.getElementById('auth-card');
+  const ov=document.getElementById('auth-overlay'), ld=document.getElementById('auth-loading'), cd=document.getElementById('auth-card'), vc=document.getElementById('verify-card');
   if(state==='hidden'){ if(ov) ov.style.display='none'; return; }
   if(ov) ov.style.display='flex';
   if(ld) ld.style.display = state==='loading'?'flex':'none';
   if(cd) cd.style.display = state==='login'?'flex':'none';
+  if(vc) vc.style.display = state==='verify'?'flex':'none';
+}
+// ── Email verification gate ──
+async function ariaResendVerification(){
+  try{ await window.ARIA_FB.sendVerification(); showToast('Verification email sent — check your inbox & spam.', false); }
+  catch(e){ showToast('Could not send the email right now.'); }
+}
+async function ariaCheckVerification(){
+  const btn=document.getElementById('verify-check'); if(btn){ btn.disabled=true; btn.textContent='Checking…'; }
+  try{
+    const u=await window.ARIA_FB.reloadUser();
+    if(u && u.emailVerified){ window.onAriaUser(u); return; }
+    showToast("Sorry, we couldn't verify your email yet — click the link we sent, then try again.");
+  }catch(e){ showToast("Sorry, we couldn't verify your email."); }
+  if(btn){ btn.disabled=false; btn.textContent="I've verified"; }
+}
+
+// ── Per-account usage limits (best-effort, stored in Firestore) ──
+const ADMIN_EMAILS=['fanegf837@gmail.com'];
+const QUERY_LIMIT=25, LIMIT_WINDOW_MS=3*60*60*1000;
+async function loadUserUsage(user){
+  const admin=ADMIN_EMAILS.includes((user.email||'').toLowerCase());
+  let limit=QUERY_LIMIT;
+  const lim=await window.ARIA_FB.loadLimit(user.uid); if(lim && typeof lim.limit==='number') limit=lim.limit;
+  let usage=null; try{ usage=await window.ARIA_FB.loadUsage(user.uid); }catch(e){}
+  const now=Date.now(); let count=0, windowStart=now;
+  if(usage && usage.windowStart && (now-usage.windowStart)<LIMIT_WINDOW_MS){ count=usage.count||0; windowStart=usage.windowStart; }
+  window.ARIA_USAGE={ limit, count, windowStart, admin };
+}
+function quotaBlocked(){
+  const u=window.ARIA_USAGE; if(!u||u.admin) return false;
+  const now=Date.now();
+  if(now-u.windowStart>=LIMIT_WINDOW_MS){ u.count=0; u.windowStart=now; }
+  if(u.count>=u.limit){
+    const mins=Math.max(1,Math.ceil((u.windowStart+LIMIT_WINDOW_MS-now)/60000));
+    const h=Math.floor(mins/60), m=mins%60;
+    showToast(`You've reached your limit of ${u.limit} messages. Please try again in ${h>0?h+'h ':''}${m}m.`);
+    return true;
+  }
+  return false;
+}
+function countQuery(){
+  const u=window.ARIA_USAGE; if(!u||u.admin) return;
+  u.count++;
+  if(window.ARIA_UID && window.ARIA_FB) window.ARIA_FB.saveUsage(window.ARIA_UID,{count:u.count,windowStart:u.windowStart}).catch(()=>{});
 }
 // Called by the Firebase module on every auth-state change (and once if unconfigured).
 window.onAriaUser=function(user){
@@ -1099,6 +1157,15 @@ window.onAriaUser=function(user){
   if(user){
     window.ARIA_UID=user.uid;
     const email=user.email||'';
+    // Email verification gate — accounts must verify before using the app.
+    if(!user.emailVerified){
+      window.ARIA_UID=null;
+      showAuthGate('verify');
+      const ve=document.getElementById('verify-email'); if(ve) ve.textContent=email||'your email';
+      if(accSg) accSg.style.display='none'; if(accDiv) accDiv.style.display='none';
+      if(sbWrap) sbWrap.style.display='none';
+      return;
+    }
     showAuthGate('hidden');
     if(accSg) accSg.style.display='';
     if(accDiv) accDiv.style.display='';
@@ -1108,6 +1175,7 @@ window.onAriaUser=function(user){
     applyAccountName(user.displayName||'', email);
     loadUserMemory(user.uid);
     loadUserChats(user.uid);
+    loadUserUsage(user);
     // No display name yet (new account or never set) → prompt for one, once per session.
     window._ariaNewSignup=false;
     if(!user.displayName && !window._ariaNamePrompted){
@@ -1320,7 +1388,7 @@ function buildWelcome(){
   const am=LS.get('aria_model_anthropic'); if(am) document.getElementById('model').value=am;
   const om=LS.get('aria_model_openai');    if(om) document.getElementById('openai-model').value=om;
   const rm=LS.get('aria_model_openrouter'); if(rm){ const sel=document.getElementById('or-model'); if(sel) sel.value=rm; }
-  const cm=LS.get('ollama_cloud_model');   if(cm) document.getElementById('ollama-cloud-model-input').value=cm;
+  const cm=LS.get('ollama_cloud_model')||'gpt-oss:120b'; document.getElementById('ollama-cloud-model-input').value=cm; LS.set('ollama_cloud_model',cm);
   // restore feature toggles
   const savedFeats=LS.get('aria_feat_flags');
   if(savedFeats){ try{ Object.assign(feats,JSON.parse(savedFeats)); }catch{} }
@@ -1330,7 +1398,7 @@ function buildWelcome(){
   document.getElementById('b-search').textContent=feats.search?'Search ON':'Search OFF';
   document.getElementById('b-search').classList.toggle('on',feats.search);
 
-  applyTheme(LS.get('aria_theme')||'light');
+  applyTheme(LS.get('aria_theme')||'dark');
   setProvider(provider);
   setOllamaMode(ollamaMode);
   renderMemory();
@@ -1667,9 +1735,7 @@ function enhanceMessage(body, raw){
     const bar=document.createElement('div'); bar.className='msg-actions';
     const mk=(label,fn)=>{ const b=document.createElement('button'); b.className='msg-act'; b.textContent=label; b.onclick=fn; return b; };
     bar.appendChild(mk('Copy', ()=>{ navigator.clipboard.writeText(raw).catch(()=>{}); showToast('Copied.', false); }));
-    bar.appendChild(mk('PDF', ()=>downloadPDF(raw)));
-    bar.appendChild(mk('Word', ()=>downloadDoc(raw)));
-    bar.appendChild(mk('Markdown', ()=>downloadText(raw,'aria-response.md','text/markdown')));
+    bar.appendChild(mk('Download PDF', ()=>downloadPDF(raw)));
     body.appendChild(bar);
   }
 }
@@ -1688,7 +1754,9 @@ async function send(){
   if(!txt&&!attachments.length)return;
   const model=activeModel();
   if(!model){ openSettings(); showToast('Choose a model in Settings.'); return; }
+  if(quotaBlocked()) return;
 
+  countQuery();
   busy=true; document.getElementById('send-btn').disabled=true; inp.value=''; inp.style.height='auto';
 
   const parts=[]; const fnames=attachments.map(a=>a.name).join(', ');
@@ -1728,7 +1796,7 @@ function systemPrompt(){
   const base=document.getElementById('sys-p').value.trim()||'You are ARIA, a helpful, direct AI assistant. Match reply length to the question; keep simple answers short with no unsolicited follow-ups, and use lists or headings only when the content needs structure.';
   const nameLine = window.ARIA_NAME ? `\nThe user's name is ${window.ARIA_NAME}. Do NOT begin replies with their name or greet them every message; only use it occasionally when it genuinely fits.` : '';
   const style = `\nFormatting: never use horizontal rules or lines of dashes (such as "---", "—", or "|----|") to separate sections. Just use short paragraphs, and headings or bullets only when truly needed.`;
-  const files = `\nDownloads: the user can download your replies from the app — whole responses as PDF or Word, and any fenced code block as a file. When asked to create a document, file, or code, write the complete content directly in your reply (put code in a fenced code block with its language); don't say you can't make files.`;
+  const files = `\nDownloads: the user can download your replies as a PDF, and any fenced code block as a file. When asked to create a document, file, or code, write the complete content directly in your reply (put code in a fenced code block with its language); don't say you can't make files.`;
   return base+nameLine+style+files+`\nToday is ${new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}.`+memoryBlock()+notesBlock();
 }
 
@@ -1914,7 +1982,7 @@ async function ddgSearch(query){
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword,
          signOut, GoogleAuthProvider, signInWithPopup, setPersistence, browserLocalPersistence,
-         updateProfile } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
+         updateProfile, sendEmailVerification } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
 import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -1939,10 +2007,15 @@ try {
     signInGoogle: () => signInWithPopup(auth, new GoogleAuthProvider()),
     signOut: () => signOut(auth),
     updateName: (name) => updateProfile(auth.currentUser, { displayName: name }),
+    sendVerification: () => auth.currentUser ? sendEmailVerification(auth.currentUser) : Promise.reject(new Error('no user')),
+    reloadUser: async () => { if(auth.currentUser){ await auth.currentUser.reload(); return auth.currentUser; } return null; },
     loadMemory: async (uid) => { const s = await getDoc(doc(db, 'memories', uid)); const d = s.exists() ? s.data() : {}; return { facts: d.facts || [], learned: d.learned || [], notes: d.notes || [] }; },
     saveMemory: async (uid, data) => { await setDoc(doc(db, 'memories', uid), { facts: (data && data.facts) || [], learned: (data && data.learned) || [], notes: (data && data.notes) || [], updated: Date.now() }); },
     loadChats: async (uid) => { const s = await getDoc(doc(db, 'chats', uid)); return s.exists() ? (s.data().convs || []) : []; },
     saveChats: async (uid, convs) => { await setDoc(doc(db, 'chats', uid), { convs, updated: Date.now() }); },
+    loadUsage: async (uid) => { const s = await getDoc(doc(db, 'usage', uid)); return s.exists() ? s.data() : null; },
+    saveUsage: async (uid, data) => { await setDoc(doc(db, 'usage', uid), data); },
+    loadLimit: async (uid) => { try{ const s = await getDoc(doc(db, 'limits', uid)); return s.exists() ? s.data() : null; }catch(e){ return null; } },
   };
   onAuthStateChanged(auth, (user) => { if (window.onAriaUser) window.onAriaUser(user); });
 } catch (e) {
