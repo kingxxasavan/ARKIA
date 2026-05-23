@@ -370,6 +370,11 @@
     .auth-toggle{ font-size:12px; color:var(--text-3); margin-top:6px; }
     .auth-toggle a{ color:var(--accent); cursor:pointer; text-decoration:none; font-weight:600; }
     .auth-toggle a:hover{ text-decoration:underline; }
+    .auth-home{ font-size:12px; color:var(--text-3); text-decoration:none; margin-top:2px; }
+    .auth-home:hover{ color:var(--accent); }
+    .auth-loading{ display:flex; align-items:center; justify-content:center; }
+    .auth-spinner{ width:32px; height:32px; border-radius:50%; border:3px solid var(--border-md); border-top-color:var(--accent); animation:auth-spin 0.8s linear infinite; }
+    @keyframes auth-spin{ to{ transform:rotate(360deg); } }
   </style>
 </head>
 <body>
@@ -698,8 +703,9 @@
 <input type="file" id="file-in" accept="image/jpeg,image/png,image/gif,image/webp,application/pdf,.pdf" multiple onchange="onFiles(event)" />
 
 <!-- Login / signup overlay (shown only when accounts are configured and nobody is signed in) -->
-<div id="auth-overlay" class="auth-overlay" style="display:none">
-  <div class="auth-card">
+<div id="auth-overlay" class="auth-overlay" style="display:flex">
+  <div id="auth-loading" class="auth-loading"><div class="auth-spinner"></div></div>
+  <div class="auth-card" id="auth-card" style="display:none">
     <div class="auth-logo">A</div>
     <div class="auth-title" id="auth-title">Welcome back</div>
     <div class="auth-sub">Sign in so your memory and chats follow you everywhere.</div>
@@ -713,6 +719,7 @@
       Continue with Google
     </button>
     <div class="auth-toggle" id="auth-toggle">New to ARIA? <a onclick="ariaAuthToggle()">Create an account</a></div>
+    <a class="auth-home" href="/">← Back to home</a>
   </div>
 </div>
 
@@ -1054,13 +1061,20 @@ function ariaAuthErr(e){
   if(c.includes('popup-closed')||c.includes('cancelled-popup')) return '';
   return (e&&e.message)||'Something went wrong.';
 }
+// Show the auth gate: 'hidden' (into the app), 'login' (sign-in card), or 'loading'.
+function showAuthGate(state){
+  const ov=document.getElementById('auth-overlay'), ld=document.getElementById('auth-loading'), cd=document.getElementById('auth-card');
+  if(state==='hidden'){ if(ov) ov.style.display='none'; return; }
+  if(ov) ov.style.display='flex';
+  if(ld) ld.style.display = state==='loading'?'flex':'none';
+  if(cd) cd.style.display = state==='login'?'flex':'none';
+}
 // Called by the Firebase module on every auth-state change (and once if unconfigured).
 window.onAriaUser=function(user){
-  const overlay=document.getElementById('auth-overlay');
   const accSg=document.getElementById('account-sg'), accDiv=document.getElementById('account-divider');
   const sbWrap=document.getElementById('sb-account-wrap');
   if(!(window.ARIA_FB&&window.ARIA_FB.configured)){
-    if(overlay) overlay.style.display='none';
+    showAuthGate('hidden');
     if(accSg) accSg.style.display='none'; if(accDiv) accDiv.style.display='none';
     if(sbWrap) sbWrap.style.display='none';
     return;
@@ -1068,7 +1082,7 @@ window.onAriaUser=function(user){
   if(user){
     window.ARIA_UID=user.uid;
     const email=user.email||'';
-    if(overlay) overlay.style.display='none';
+    showAuthGate('hidden');
     if(accSg) accSg.style.display='';
     if(accDiv) accDiv.style.display='';
     if(sbWrap) sbWrap.style.display='';
@@ -1085,11 +1099,13 @@ window.onAriaUser=function(user){
     } else { window._ariaNewSignup=false; }
   }else{
     window.ARIA_UID=null;
-    if(overlay) overlay.style.display='flex';
+    showAuthGate('login');
     if(accSg) accSg.style.display='none'; if(accDiv) accDiv.style.display='none';
     if(sbWrap) sbWrap.style.display='none';
   }
 };
+// Safety net: if Firebase never loads (e.g. blocked), don't get stuck on the spinner.
+setTimeout(()=>{ if(!window.ARIA_FB){ showAuthGate('hidden'); } }, 8000);
 
 function renderMemory(){
   const el=document.getElementById('mem-list'); if(!el) return;
