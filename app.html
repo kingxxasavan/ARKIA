@@ -316,6 +316,15 @@
     .ai-body th,.ai-body td { border: 1px solid var(--border-md); padding: 8px 12px; }
     .ai-body th { background: var(--bg-card); font-weight: 600; }
     .ai-body hr { border: none; border-top: 1px solid var(--border); margin: 14px 0; }
+    .ai-body pre { position: relative; }
+    .ai-body pre .code-tools { position: absolute; top: 7px; right: 7px; display: flex; gap: 5px; opacity: 0; transition: opacity .15s; }
+    .ai-body pre:hover .code-tools { opacity: 1; }
+    .code-btn { font-family: var(--font-sans); font-size: 11px; font-weight: 500; color: #e8e2d8; background: rgba(255,255,255,0.10); border: 1px solid rgba(255,255,255,0.16); border-radius: 6px; padding: 3px 8px; cursor: pointer; }
+    .code-btn:hover { background: rgba(255,255,255,0.20); }
+    .msg-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; opacity: 0; transition: opacity .15s; }
+    .msg-row.ai:hover .msg-actions { opacity: 1; }
+    .msg-act { font-family: var(--font-sans); font-size: 11.5px; font-weight: 500; color: var(--text-2); background: var(--bg-card); border: 1px solid var(--border); border-radius: 7px; padding: 4px 10px; cursor: pointer; transition: all .12s; }
+    .msg-act:hover { border-color: var(--accent); color: var(--accent); }
 
     .typing { display: flex; gap: 4px; align-items: center; padding: 4px 0; }
     .typing span { width: 6px; height: 6px; background: var(--text-3); border-radius: 50%; animation: td 1.3s ease-in-out infinite; }
@@ -1274,7 +1283,7 @@ function loadConv(id){
   document.getElementById('tb-title').textContent=c.title;
   history.forEach(m=>{
     if(m.role==='user'){ const txt=typeof m.content==='string'?m.content:(m.content.find(b=>b.type==='text')?.text||''); addHuman(txt,null,true); }
-    else { const txt=typeof m.content==='string'?m.content:''; const b=addAI(true); b.innerHTML=md(txt); }
+    else { const txt=typeof m.content==='string'?m.content:''; const b=addAI(true); b.innerHTML=md(txt); enhanceMessage(b, txt); }
   });
   scrollMsgs(true); renderSidebar();
 }
@@ -1580,7 +1589,7 @@ function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').rep
 function md(t){
   if(!t)return'';
   let h=t
-    .replace(/```(\w*)\n?([\s\S]*?)```/g,(_,l,c)=>`<pre><code>${esc(c.trim())}</code></pre>`)
+    .replace(/```(\w*)\n?([\s\S]*?)```/g,(_,l,c)=>`<pre data-lang="${esc(l||'')}"><code>${esc(c.trim())}</code></pre>`)
     .replace(/`([^`]+)`/g,(_,c)=>`<code>${esc(c)}</code>`)
     .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
     .replace(/\*(.+?)\*/g,'<em>$1</em>')
@@ -1597,6 +1606,73 @@ function md(t){
   return'<p>'+h+'</p>';
 }
 function toolChips(names){ if(!names.length)return''; return names.map(n=>`<span class="tool-chip">⚙ ${esc(n.replace(/_/g,' '))}</span>`).join(''); }
+
+// ── Downloadable outputs: code files, PDF, Word, Markdown ──
+function triggerDownload(blob, name){
+  const url=URL.createObjectURL(blob); const a=document.createElement('a');
+  a.href=url; a.download=name; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1500);
+}
+function downloadText(text, name, mime){ triggerDownload(new Blob([text],{type:(mime||'text/plain')+';charset=utf-8'}), name); }
+const LANG_EXT={javascript:'js',js:'js',typescript:'ts',ts:'ts',jsx:'jsx',tsx:'tsx',python:'py',py:'py',java:'java',c:'c',cpp:'cpp','c++':'cpp',cs:'cs',csharp:'cs',go:'go',golang:'go',ruby:'rb',rb:'rb',rust:'rs',rs:'rs',php:'php',html:'html',css:'css',scss:'scss',json:'json',xml:'xml',yaml:'yml',yml:'yml',sql:'sql',sh:'sh',bash:'sh',shell:'sh',swift:'swift',kotlin:'kt',kt:'kt',dart:'dart',md:'md',markdown:'md',r:'r',lua:'lua'};
+function downloadCode(text, lang){
+  const ext=LANG_EXT[(lang||'').toLowerCase()]||'txt';
+  downloadText(text, 'code.'+ext, 'text/plain');
+}
+function stripMd(t){
+  return String(t)
+    .replace(/```(\w*)\n?/g,'').replace(/```/g,'')
+    .replace(/`([^`]+)`/g,'$1')
+    .replace(/\*\*([^*]+)\*\*/g,'$1').replace(/\*([^*]+)\*/g,'$1')
+    .replace(/^#{1,6}\s*/gm,'')
+    .replace(/^\s*[-*]\s+/gm,'• ')
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g,'$1 ($2)')
+    .replace(/^\s*\|?[-–—\s|]{3,}\|?\s*$/gm,'');
+}
+function downloadDoc(raw){
+  const html='<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word"><head><meta charset="utf-8"><style>body{font-family:Calibri,Arial,sans-serif;font-size:11pt;line-height:1.5}pre,code{font-family:Consolas,monospace}</style></head><body>'+md(raw)+'</body></html>';
+  triggerDownload(new Blob(['﻿'+html],{type:'application/msword'}), 'aria-document.doc');
+}
+let _jspdfP;
+function loadJsPDF(){ if(_jspdfP) return _jspdfP; _jspdfP=new Promise((res,rej)=>{ const s=document.createElement('script'); s.src='https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'; s.onload=res; s.onerror=()=>{_jspdfP=null;rej(new Error('pdf lib'));}; document.head.appendChild(s); }); return _jspdfP; }
+async function downloadPDF(raw){
+  try{ await loadJsPDF(); }catch(e){ showToast('Could not load the PDF tool.'); return; }
+  const { jsPDF }=window.jspdf;
+  const doc=new jsPDF({unit:'pt',format:'letter'});
+  const margin=54, W=doc.internal.pageSize.getWidth()-margin*2, H=doc.internal.pageSize.getHeight()-margin, lh=15;
+  doc.setFont('helvetica','normal'); doc.setFontSize(11);
+  let y=margin;
+  stripMd(raw).split('\n').forEach(para=>{
+    const lines=doc.splitTextToSize(para||' ', W);
+    lines.forEach(line=>{ if(y>H){ doc.addPage(); y=margin; } doc.text(line, margin, y); y+=lh; });
+  });
+  doc.save('aria-document.pdf');
+}
+
+// Add copy/download controls to a finished assistant message.
+function enhanceMessage(body, raw){
+  if(!body) return;
+  body.querySelectorAll('pre').forEach(pre=>{
+    if(pre.querySelector('.code-tools')) return;
+    const code=pre.querySelector('code'); const text=code?code.textContent:pre.textContent;
+    const lang=pre.getAttribute('data-lang')||'';
+    const tools=document.createElement('div'); tools.className='code-tools';
+    const copyB=document.createElement('button'); copyB.className='code-btn'; copyB.textContent='Copy';
+    copyB.onclick=()=>{ navigator.clipboard.writeText(text).catch(()=>{}); copyB.textContent='Copied'; setTimeout(()=>copyB.textContent='Copy',1200); };
+    const dlB=document.createElement('button'); dlB.className='code-btn'; dlB.textContent='Download';
+    dlB.onclick=()=>downloadCode(text, lang);
+    tools.appendChild(copyB); tools.appendChild(dlB); pre.appendChild(tools);
+  });
+  if(raw && !body.querySelector('.msg-actions')){
+    const bar=document.createElement('div'); bar.className='msg-actions';
+    const mk=(label,fn)=>{ const b=document.createElement('button'); b.className='msg-act'; b.textContent=label; b.onclick=fn; return b; };
+    bar.appendChild(mk('Copy', ()=>{ navigator.clipboard.writeText(raw).catch(()=>{}); showToast('Copied.', false); }));
+    bar.appendChild(mk('PDF', ()=>downloadPDF(raw)));
+    bar.appendChild(mk('Word', ()=>downloadDoc(raw)));
+    bar.appendChild(mk('Markdown', ()=>downloadText(raw,'aria-response.md','text/markdown')));
+    body.appendChild(bar);
+  }
+}
 
 // ════════════════════════════════════════════════
 //  SEND
@@ -1636,6 +1712,7 @@ async function send(){
     if(provider==='anthropic') reply=await callAnthropic(model,body);
     else reply=await callOpenAICompat(model,body); // openai + ollama
     body.innerHTML=md(reply);
+    enhanceMessage(body, reply);
     history.push({role:'assistant',content:reply});
     saveCurrentConv(document.getElementById('tb-title').textContent);
     if(feats.autolearn) learnFromConversation(false);
@@ -1651,7 +1728,8 @@ function systemPrompt(){
   const base=document.getElementById('sys-p').value.trim()||'You are ARIA, a helpful, direct AI assistant. Match reply length to the question; keep simple answers short with no unsolicited follow-ups, and use lists or headings only when the content needs structure.';
   const nameLine = window.ARIA_NAME ? `\nThe user's name is ${window.ARIA_NAME}. Do NOT begin replies with their name or greet them every message; only use it occasionally when it genuinely fits.` : '';
   const style = `\nFormatting: never use horizontal rules or lines of dashes (such as "---", "—", or "|----|") to separate sections. Just use short paragraphs, and headings or bullets only when truly needed.`;
-  return base+nameLine+style+`\nToday is ${new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}.`+memoryBlock()+notesBlock();
+  const files = `\nDownloads: the user can download your replies from the app — whole responses as PDF or Word, and any fenced code block as a file. When asked to create a document, file, or code, write the complete content directly in your reply (put code in a fenced code block with its language); don't say you can't make files.`;
+  return base+nameLine+style+files+`\nToday is ${new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}.`+memoryBlock()+notesBlock();
 }
 
 // ── Anthropic ──────────────────────────────────
