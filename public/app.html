@@ -20,8 +20,8 @@
       --accent:       #cc7a3a;
       --accent-soft:  rgba(204,122,58,0.10);
       --accent-hover: #b06428;
-      --user-bg:      #1a1612;
-      --user-text:    #f5f0e8;
+      --user-bg:      var(--accent);
+      --user-text:    #ffffff;
       --green:        #3a9a5c;
       --green-soft:   rgba(74,180,100,0.10);
       --code-bg:      #1a1612;
@@ -47,8 +47,8 @@
       --accent:       #e08a4a;
       --accent-soft:  rgba(224,138,74,0.14);
       --accent-hover: #f0985a;
-      --user-bg:      #ece4d6;
-      --user-text:    #1a1612;
+      --user-bg:      var(--accent);
+      --user-text:    #ffffff;
       --green:        #5cba78;
       --green-soft:   rgba(92,186,120,0.14);
       --code-bg:      #100d0a;
@@ -1099,12 +1099,13 @@ window.onAriaUser=function(user){
     applyAccountName(user.displayName||'', email);
     loadUserMemory(user.uid);
     loadUserChats(user.uid);
-    // First time after creating an account → ask for a username to greet by.
-    if(window._ariaNewSignup && !user.displayName){
-      window._ariaNewSignup=false;
+    // No display name yet (new account or never set) → prompt for one, once per session.
+    window._ariaNewSignup=false;
+    if(!user.displayName && !window._ariaNamePrompted){
+      window._ariaNamePrompted=true;
       const nm=document.getElementById('name-modal'); const ni=document.getElementById('name-input');
-      if(ni) ni.value=''; if(nm){ nm.style.display='flex'; setTimeout(()=>ni&&ni.focus(),50); }
-    } else { window._ariaNewSignup=false; }
+      if(ni) ni.value=''; if(nm){ nm.style.display='flex'; setTimeout(()=>ni&&ni.focus(),60); }
+    }
   }else{
     window.ARIA_UID=null;
     showAuthGate('login');
@@ -1590,7 +1591,7 @@ function md(t){
     .replace(/^[\*\-] (.+)$/gm,'<li>$1</li>')
     .replace(/(<li>.*<\/li>(\n|$))+/g,s=>`<ul>${s}</ul>`)
     .replace(/\[(.+?)\]\((.+?)\)/g,'<a href="$2" target="_blank" rel="noopener">$1</a>')
-    .replace(/^---$/gm,'<hr>')
+    .replace(/^\s*\|?[-–—\s|]{3,}\|?\s*$/gm,'')
     .replace(/\n\n+/g,'</p><p>')
     .replace(/\n/g,'<br>');
   return'<p>'+h+'</p>';
@@ -1648,8 +1649,9 @@ async function send(){
 
 function systemPrompt(){
   const base=document.getElementById('sys-p').value.trim()||'You are ARIA, a helpful, direct AI assistant. Match reply length to the question; keep simple answers short with no unsolicited follow-ups, and use lists or headings only when the content needs structure.';
-  const nameLine = window.ARIA_NAME ? `\nThe user's name is ${window.ARIA_NAME}; address them by name when it feels natural.` : '';
-  return base+nameLine+`\nToday is ${new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}.`+memoryBlock()+notesBlock();
+  const nameLine = window.ARIA_NAME ? `\nThe user's name is ${window.ARIA_NAME}. Do NOT begin replies with their name or greet them every message; only use it occasionally when it genuinely fits.` : '';
+  const style = `\nFormatting: never use horizontal rules or lines of dashes (such as "---", "—", or "|----|") to separate sections. Just use short paragraphs, and headings or bullets only when truly needed.`;
+  return base+nameLine+style+`\nToday is ${new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}.`+memoryBlock()+notesBlock();
 }
 
 // ── Anthropic ──────────────────────────────────
