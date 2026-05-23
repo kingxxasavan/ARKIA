@@ -9,18 +9,12 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&family=DM+Serif+Display&display=swap" rel="stylesheet" />
 <style>
   :root{
-    --bg:#f5f0e8; --bg-card:#ede8df; --bg-soft:#e3ddd3;
-    --text-1:#1a1612; --text-2:#6b6560; --text-3:#a39890;
-    --border:rgba(0,0,0,0.08); --border-md:rgba(0,0,0,0.13);
+    --bg:#ffffff; --bg-card:#f7f6f4; --bg-soft:#f1efec;
+    --text-1:#16130f; --text-2:#5f5a54; --text-3:#9b938a;
+    --border:rgba(0,0,0,0.07); --border-md:rgba(0,0,0,0.12);
     --accent:#cc7a3a; --accent-soft:rgba(204,122,58,0.10);
     --sans:'DM Sans',system-ui,sans-serif; --serif:'DM Serif Display',Georgia,serif;
-    --shadow:0 12px 40px rgba(0,0,0,0.12),0 4px 14px rgba(0,0,0,0.06);
-  }
-  @media (prefers-color-scheme: dark){
-    :root{ --bg:#1a1714; --bg-card:#221e1a; --bg-soft:#2c2720;
-      --text-1:#f0e9df; --text-2:#b3a99c; --text-3:#837869;
-      --border:rgba(255,255,255,0.08); --border-md:rgba(255,255,255,0.14);
-      --accent:#e08a4a; --accent-soft:rgba(224,138,74,0.14); }
+    --shadow:0 12px 40px rgba(0,0,0,0.08),0 4px 14px rgba(0,0,0,0.05);
   }
   *{box-sizing:border-box}
   html,body{margin:0;padding:0}
@@ -33,9 +27,13 @@
   .brand{display:flex;align-items:center;gap:10px}
   .mark{width:34px;height:34px;border-radius:9px;background:var(--text-1);color:var(--bg);font-family:var(--serif);font-size:19px;display:flex;align-items:center;justify-content:center}
   .brand-name{font-family:var(--serif);font-size:21px;letter-spacing:-0.01em}
+  .nav-links{display:flex;align-items:center;gap:10px}
+  .nav-link{text-decoration:none;color:var(--text-2);font-size:14px;font-weight:500;padding:8px 6px}
+  .nav-link:hover{color:var(--accent)}
   .btn{display:inline-flex;align-items:center;gap:8px;padding:10px 18px;border-radius:11px;font-family:var(--sans);font-size:14px;font-weight:600;text-decoration:none;cursor:pointer;border:1px solid var(--border-md);background:var(--bg-card);color:var(--text-1);transition:all .15s}
   .btn:hover{box-shadow:var(--shadow);transform:translateY(-1px)}
   .btn.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .btn.ghost{background:transparent;border-color:var(--border-md)}
 
   /* Hero */
   .hero{display:grid;grid-template-columns:1.05fr 1fr;gap:48px;align-items:center;padding:54px 0 40px}
@@ -88,8 +86,12 @@
 <div class="wrap">
 
   <nav>
-    <div class="brand"><div class="mark">A</div><div class="brand-name">ARIA</div></div>
-    <a class="btn primary" href="/app">Launch ARIA</a>
+    <a class="brand" href="/" style="text-decoration:none"><div class="mark">A</div><div class="brand-name">ARIA</div></a>
+    <div class="nav-links">
+      <a class="nav-link" href="mailto:fanegf837@gmail.com">Contact us</a>
+      <a class="btn ghost" href="/app?mode=login">Log in</a>
+      <a class="btn primary" href="/app?mode=signup">Sign up</a>
+    </div>
   </nav>
 
   <section class="hero">
@@ -98,8 +100,8 @@
       <h1>Meet <span class="accent">ARIA</span>, your AI that actually remembers you.</h1>
       <p class="lead">Chat with the best AI models, keep a long-term memory of your preferences and projects, save notes for later, and bring in files, code, and images — all in one clean app that follows you across devices.</p>
       <div class="cta">
-        <a class="btn primary" href="/app">Launch ARIA</a>
-        <a class="btn" href="/app">Create an account</a>
+        <a class="btn primary" href="/app?mode=signup">Get started — it's free</a>
+        <a class="btn" href="/app?mode=login">Log in</a>
       </div>
     </div>
 
@@ -134,15 +136,27 @@
   <section class="section">
     <div class="strip">
       <h2>Ready when you are</h2>
-      <a class="btn primary" href="/app">Launch ARIA</a>
+      <div class="cta" style="justify-content:center">
+        <a class="btn primary" href="/app?mode=signup">Sign up</a>
+        <a class="btn" href="/app?mode=login">Log in</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="contact">
+    <div class="strip">
+      <h2>Get in touch</h2>
+      <p style="color:var(--text-2);margin:0 0 16px">Questions, feedback, or need help? We'd love to hear from you.</p>
+      <a class="btn primary" href="mailto:fanegf837@gmail.com">Contact us</a>
+      <div style="margin-top:12px;font-size:13px;color:var(--text-3)">fanegf837@gmail.com</div>
     </div>
   </section>
 
 </div>
 
 <footer>
-  <div>ARIA — your personal AI assistant.</div>
-  <div style="margin-top:6px">Created by <span class="by">Savankumar Patel</span></div>
+  <div><a href="/app?mode=login" style="text-decoration:none;color:inherit">Log in</a> · <a href="/app?mode=signup" style="text-decoration:none;color:inherit">Sign up</a> · <a href="mailto:fanegf837@gmail.com" style="text-decoration:none;color:inherit">Contact us</a></div>
+  <div style="margin-top:8px">Created by <span class="by">Savankumar Patel</span></div>
 </footer>
 
 </body>

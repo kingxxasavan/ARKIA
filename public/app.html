@@ -713,7 +713,7 @@
   <div class="auth-card" id="auth-card" style="display:none">
     <div class="auth-logo">A</div>
     <div class="auth-title" id="auth-title">Welcome back</div>
-    <div class="auth-sub">Sign in so your memory and chats follow you everywhere.</div>
+    <div class="auth-sub" id="auth-sub">Sign in so your memory and chats follow you everywhere.</div>
     <input id="auth-email" class="auth-input" type="email" placeholder="Email" autocomplete="email">
     <input id="auth-pass" class="auth-input" type="password" placeholder="Password" autocomplete="current-password" onkeydown="if(event.key==='Enter')ariaAuthSubmit()">
     <div class="auth-err" id="auth-err"></div>
@@ -992,17 +992,20 @@ async function loadUserMemory(uid){
 // ════════════════════════════════════════════════
 //  ACCOUNTS (Firebase auth + Firestore — set up by the module script below)
 // ════════════════════════════════════════════════
-let authMode='signin';
+let authMode = new URLSearchParams(location.search).get('mode')==='signup' ? 'signup' : 'signin';
 window.ARIA_UID=null;
-function ariaAuthToggle(){
-  authMode = authMode==='signin'?'signup':'signin';
-  document.getElementById('auth-title').textContent = authMode==='signin'?'Welcome back':'Create your account';
-  document.getElementById('auth-submit').textContent = authMode==='signin'?'Sign in':'Sign up';
-  document.getElementById('auth-toggle').innerHTML = authMode==='signin'
-    ? 'New to ARIA? <a onclick="ariaAuthToggle()">Create an account</a>'
-    : 'Already have an account? <a onclick="ariaAuthToggle()">Sign in</a>';
-  document.getElementById('auth-err').textContent='';
+function applyAuthMode(){
+  const su=authMode==='signup';
+  const set=(id,v,prop)=>{ const el=document.getElementById(id); if(el) el[prop||'textContent']=v; };
+  set('auth-title', su?'Welcome 👋':'Welcome back');
+  set('auth-sub', su?'Create your account — your memory, notes, and chats sync across devices.':'Sign in so your memory and chats follow you everywhere.');
+  set('auth-submit', su?'Sign up':'Sign in');
+  set('auth-toggle', su
+    ? 'Already have an account? <a onclick="ariaAuthToggle()">Log in</a>'
+    : 'New to ARIA? <a onclick="ariaAuthToggle()">Create an account</a>', 'innerHTML');
+  set('auth-err','');
 }
+function ariaAuthToggle(){ authMode = authMode==='signin'?'signup':'signin'; applyAuthMode(); }
 async function ariaAuthSubmit(){
   const email=document.getElementById('auth-email').value.trim();
   const pass=document.getElementById('auth-pass').value;
@@ -1292,6 +1295,7 @@ function buildWelcome(){
 (function(){
   // Detect whether a backend proxy exists; toggles server vs. local key handling.
   detectServerMode();
+  applyAuthMode();
 
   // Anthropic key (local mode only)
   const k=LS.get('aria_key'); if(k){ document.getElementById('api-key').value=k; setKS(true); }
