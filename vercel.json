@@ -3,9 +3,6 @@
     { "source": "/app", "destination": "/public/app.html" },
     { "source": "/app/(.*)", "destination": "/public/app.html" }
   ],
-  "redirects": [
-    { "source": "/", "destination": "/app", "permanent": false }
-  ],
   "headers": [
     {
       "source": "/(.*)",

@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>ARIA — Your personal AI assistant</title>
-<meta name="description" content="ARIA is a personal AI assistant with long-term memory, document understanding, and web search, running on GLM-4.6 via Ollama." />
+<title>Cryptic Hub</title>
+<meta name="description" content="Cryptic Hub — your private launchpad of websites and access links." />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&family=DM+Serif+Display&display=swap" rel="stylesheet" />
 <style>
@@ -13,87 +13,100 @@
     --text-1:#16130f; --text-2:#5f5a54; --text-3:#9b938a;
     --border:rgba(0,0,0,0.07); --border-md:rgba(0,0,0,0.12);
     --accent:#cc7a3a; --accent-soft:rgba(204,122,58,0.10);
+    --danger:#b83030;
     --sans:'DM Sans',system-ui,sans-serif; --serif:'DM Serif Display',Georgia,serif;
+    --mono:ui-monospace,'JetBrains Mono',Menlo,Consolas,monospace;
     --shadow:0 12px 40px rgba(0,0,0,0.08),0 4px 14px rgba(0,0,0,0.05);
+    --r:14px;
   }
   :root[data-theme="dark"]{
     --bg:#15120f; --bg-card:#211d18; --bg-soft:#2a251f;
     --text-1:#f0e9df; --text-2:#b3a99c; --text-3:#837869;
     --border:rgba(255,255,255,0.08); --border-md:rgba(255,255,255,0.14);
     --accent:#e08a4a; --accent-soft:rgba(224,138,74,0.14);
+    --danger:#e07a7a;
     --shadow:0 12px 40px rgba(0,0,0,0.45),0 4px 14px rgba(0,0,0,0.3);
   }
-  body{transition:background-color .25s ease,color .25s ease}
-  .theme-btn{width:38px;height:38px;border-radius:10px;border:1px solid var(--border-md);background:var(--bg-card);color:var(--text-1);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:all .15s}
-  .theme-btn:hover{border-color:var(--accent);color:var(--accent)}
   *{box-sizing:border-box}
   html,body{margin:0;padding:0}
-  body{font-family:var(--sans);color:var(--text-1);background:var(--bg);-webkit-font-smoothing:antialiased;line-height:1.6}
+  body{font-family:var(--sans);color:var(--text-1);background:var(--bg);-webkit-font-smoothing:antialiased;line-height:1.6;transition:background-color .25s ease,color .25s ease;min-height:100vh;position:relative}
   a{color:inherit}
-  .wrap{max-width:1040px;margin:0 auto;padding:0 22px}
+  /* faint "cryptic" grid backdrop */
+  .fx-grid{position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.5;
+    background-image:linear-gradient(var(--border) 1px,transparent 1px),linear-gradient(90deg,var(--border) 1px,transparent 1px);
+    background-size:44px 44px;
+    -webkit-mask-image:radial-gradient(circle at 50% 30%,#000,transparent 80%);
+            mask-image:radial-gradient(circle at 50% 30%,#000,transparent 80%);}
+  .wrap{max-width:1100px;margin:0 auto;padding:0 22px;position:relative;z-index:1}
 
   /* Nav */
   nav{display:flex;align-items:center;justify-content:space-between;padding:20px 0}
-  .brand{display:flex;align-items:center;gap:10px}
-  .mark{width:34px;height:34px;border-radius:9px;background:var(--text-1);color:var(--bg);font-family:var(--serif);font-size:19px;display:flex;align-items:center;justify-content:center}
+  .brand{display:flex;align-items:center;gap:10px;text-decoration:none}
+  .mark{width:34px;height:34px;border-radius:9px;background:var(--text-1);color:var(--bg);font-family:var(--serif);font-size:18px;display:flex;align-items:center;justify-content:center}
   .brand-name{font-family:var(--serif);font-size:21px;letter-spacing:-0.01em}
   .nav-links{display:flex;align-items:center;gap:10px}
-  .nav-link{text-decoration:none;color:var(--text-2);font-size:14px;font-weight:500;padding:8px 6px}
-  .nav-link:hover{color:var(--accent)}
   .btn{display:inline-flex;align-items:center;gap:8px;padding:10px 18px;border-radius:11px;font-family:var(--sans);font-size:14px;font-weight:600;text-decoration:none;cursor:pointer;border:1px solid var(--border-md);background:var(--bg-card);color:var(--text-1);transition:all .15s}
   .btn:hover{box-shadow:var(--shadow);transform:translateY(-1px)}
   .btn.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
   .btn.ghost{background:transparent;border-color:var(--border-md)}
+  .btn.sm{padding:7px 12px;font-size:13px;border-radius:9px}
+  .theme-btn{width:38px;height:38px;border-radius:10px;border:1px solid var(--border-md);background:var(--bg-card);color:var(--text-1);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:all .15s}
+  .theme-btn:hover{border-color:var(--accent);color:var(--accent)}
 
-  /* Hero */
-  .hero{display:grid;grid-template-columns:1.05fr 1fr;gap:48px;align-items:center;padding:54px 0 40px}
-  .eyebrow{display:inline-block;font-size:12px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--accent);background:var(--accent-soft);border:1px solid rgba(204,122,58,0.2);padding:5px 11px;border-radius:20px;margin-bottom:18px}
-  h1{font-family:var(--serif);font-size:clamp(38px,6vw,60px);line-height:1.05;letter-spacing:-0.02em;margin:0 0 16px}
+  /* Header */
+  .hub-head{padding:36px 0 22px}
+  .eyebrow{display:inline-block;font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:0.18em;text-transform:uppercase;color:var(--accent);background:var(--accent-soft);border:1px solid var(--accent-soft);padding:5px 11px;border-radius:20px;margin-bottom:16px}
+  h1{font-family:var(--serif);font-size:clamp(34px,5.4vw,52px);line-height:1.05;letter-spacing:-0.02em;margin:0 0 12px}
   h1 .accent{color:var(--accent)}
-  .lead{font-size:17px;color:var(--text-2);max-width:30em;margin:0 0 26px}
-  .cta{display:flex;gap:12px;flex-wrap:wrap}
+  .hub-sub{font-size:16px;color:var(--text-2);max-width:40em;margin:0 0 22px}
+  .toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  .search{flex:1;min-width:200px;max-width:420px;padding:11px 14px;border-radius:11px;border:1px solid var(--border-md);background:var(--bg-card);color:var(--text-1);font-family:var(--sans);font-size:14px;outline:none;transition:border-color .15s}
+  .search:focus{border-color:var(--accent)}
+  .count{font-family:var(--mono);font-size:12px;color:var(--text-3);margin-left:auto}
 
-  /* App mockup ("image of it") */
-  .shot{background:var(--bg-card);border:1px solid var(--border);border-radius:18px;box-shadow:var(--shadow);overflow:hidden;display:flex;height:330px}
-  .shot .sb{width:120px;background:var(--bg-soft);border-right:1px solid var(--border);padding:12px 10px;flex-shrink:0}
-  .shot .sb .l{display:flex;align-items:center;gap:7px;margin-bottom:14px}
-  .shot .sb .l .m{width:20px;height:20px;border-radius:6px;background:var(--text-1);color:var(--bg);font-family:var(--serif);font-size:12px;display:flex;align-items:center;justify-content:center}
-  .shot .sb .l .n{font-family:var(--serif);font-size:13px}
-  .shot .sb .row{height:9px;border-radius:5px;background:var(--bg-card);border:1px solid var(--border);margin-bottom:7px}
-  .shot .sb .row.w{width:80%} .shot .sb .row.x{width:60%}
-  .shot .main{flex:1;display:flex;flex-direction:column;padding:16px}
-  .bub{max-width:78%;padding:9px 12px;border-radius:13px;font-size:12.5px;margin-bottom:10px}
-  .bub.u{align-self:flex-end;background:var(--accent);color:#fff;border-bottom-right-radius:4px}
-  .bub.a{align-self:flex-start;background:var(--bg-soft);border:1px solid var(--border);border-bottom-left-radius:4px;color:var(--text-1)}
-  .shot .inbar{margin-top:auto;display:flex;align-items:center;gap:8px;border:1px solid var(--border-md);border-radius:11px;padding:9px 11px;background:var(--bg)}
-  .shot .inbar .ph{flex:1;font-size:12px;color:var(--text-3)}
-  .shot .inbar .send{width:24px;height:24px;border-radius:7px;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px}
+  /* Grid of sites */
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px;padding:8px 0 10px}
+  .site{position:relative;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r);padding:18px;display:flex;flex-direction:column;gap:12px;transition:border-color .15s,box-shadow .15s,transform .15s}
+  .site:hover{border-color:var(--border-md);box-shadow:var(--shadow);transform:translateY(-2px)}
+  .site-top{display:flex;align-items:center;gap:12px}
+  .site-av{width:40px;height:40px;border-radius:11px;flex-shrink:0;background:var(--accent);color:#fff;font-family:var(--serif);font-size:19px;display:flex;align-items:center;justify-content:center}
+  .site-meta{min-width:0;flex:1}
+  .site-name{font-size:16px;font-weight:600;color:var(--text-1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .site-host{font-family:var(--mono);font-size:11.5px;color:var(--text-3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .site-desc{font-size:13.5px;color:var(--text-2);flex:1;min-height:20px}
+  .site-actions{display:flex;align-items:center;gap:8px}
+  .site-actions .btn.sm{flex:1;justify-content:center}
+  .icon-btn{width:32px;height:32px;flex-shrink:0;border-radius:9px;border:1px solid var(--border-md);background:var(--bg);color:var(--text-3);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;font-size:14px;transition:all .15s}
+  .icon-btn:hover{border-color:var(--accent);color:var(--accent)}
+  .icon-btn.danger:hover{border-color:var(--danger);color:var(--danger);background:rgba(184,48,48,0.06)}
 
-  /* Features */
-  .section{padding:46px 0}
-  .section h2{font-family:var(--serif);font-size:30px;text-align:center;margin:0 0 8px}
-  .section .sub{text-align:center;color:var(--text-2);margin:0 auto 34px;max-width:34em}
-  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
-  .card{background:var(--bg-card);border:1px solid var(--border);border-radius:15px;padding:22px}
-  .card .ic{font-size:24px;margin-bottom:10px}
-  .card h3{font-size:16px;margin:0 0 6px}
-  .card p{font-size:13.5px;color:var(--text-2);margin:0}
+  /* Add tile */
+  .add-tile{background:transparent;border:1.5px dashed var(--border-md);border-radius:var(--r);padding:18px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;min-height:150px;color:var(--text-3);cursor:pointer;font-family:var(--sans);font-size:14px;font-weight:500;transition:all .15s}
+  .add-tile:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
+  .add-tile .plus{font-size:26px;line-height:1}
 
-  .strip{margin:10px 0 0;background:var(--bg-card);border:1px solid var(--border);border-radius:16px;padding:26px;text-align:center}
-  .strip h2{font-family:var(--serif);font-size:26px;margin:0 0 14px}
+  .empty{text-align:center;color:var(--text-2);padding:40px 0 10px}
+  .empty .big{font-family:var(--serif);font-size:22px;color:var(--text-1);margin-bottom:6px}
 
-  footer{border-top:1px solid var(--border);margin-top:40px;padding:26px 0 40px;text-align:center;color:var(--text-3);font-size:13px}
+  /* Modal */
+  .modal-back{position:fixed;inset:0;z-index:100;background:rgba(0,0,0,0.45);display:none;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(3px)}
+  .modal{width:100%;max-width:440px;background:var(--bg);border:1px solid var(--border-md);border-radius:18px;box-shadow:var(--shadow);padding:24px}
+  .modal-title{font-family:var(--serif);font-size:21px;margin-bottom:16px}
+  .field{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
+  .field label{font-family:var(--mono);font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-3)}
+  .field input,.field textarea{width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--border-md);background:var(--bg-card);color:var(--text-1);font-family:var(--sans);font-size:14px;outline:none;transition:border-color .15s;resize:vertical}
+  .field input:focus,.field textarea:focus{border-color:var(--accent)}
+  .modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:6px}
+
+  footer{border-top:1px solid var(--border);margin-top:40px;padding:24px 0 40px;text-align:center;color:var(--text-3);font-size:13px;position:relative;z-index:1}
   footer .by{color:var(--text-1);font-weight:600}
 
-  @media (max-width:780px){
-    .hero{grid-template-columns:1fr;gap:30px;padding:30px 0}
-    .grid{grid-template-columns:1fr 1fr}
-  }
-  @media (max-width:520px){ .grid{grid-template-columns:1fr} .shot{height:300px} }
+  @media (max-width:520px){ .grid{grid-template-columns:1fr} }
 </style>
 <script>
-  // Apply saved theme early (default dark) to avoid a flash.
   (function(){ try{ var t=localStorage.getItem('aria_theme')||'dark'; document.documentElement.setAttribute('data-theme', t==='dark'?'dark':'light'); }catch(e){ document.documentElement.setAttribute('data-theme','dark'); } })();
+  var MOON='<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>';
+  var SUN='<circle cx="12" cy="12" r="4.5"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>';
   function toggleTheme(){
     var cur=document.documentElement.getAttribute('data-theme')==='dark'?'dark':'light';
     var next=cur==='dark'?'light':'dark';
@@ -101,92 +114,135 @@
     try{ localStorage.setItem('aria_theme', next); }catch(e){}
     var ic=document.getElementById('theme-ic'); if(ic) ic.innerHTML = next==='dark' ? MOON : SUN;
   }
-  var MOON='<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>';
-  var SUN='<circle cx="12" cy="12" r="4.5"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>';
 </script>
 </head>
 <body>
-<div class="wrap">
+<div class="fx-grid"></div>
 
+<div class="wrap">
   <nav>
-    <a class="brand" href="/" style="text-decoration:none"><div class="mark">A</div><div class="brand-name">ARIA</div></a>
+    <a class="brand" href="/"><div class="mark">◆</div><div class="brand-name">Cryptic Hub</div></a>
     <div class="nav-links">
-      <a class="nav-link" href="mailto:fanegf837@gmail.com">Contact us</a>
-      <a class="btn ghost" href="/app?mode=login">Log in</a>
-      <a class="btn primary" href="/app?mode=signup">Sign up</a>
+      <a class="btn ghost" href="/app">Open ARIA</a>
       <button class="theme-btn" onclick="toggleTheme()" title="Toggle dark / light" aria-label="Toggle theme">
         <svg id="theme-ic" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></svg>
       </button>
     </div>
   </nav>
 
-  <section class="hero">
-    <div>
-      <span class="eyebrow">Personal AI assistant</span>
-      <h1>Meet <span class="accent">ARIA</span>, your AI that actually remembers you.</h1>
-      <p class="lead">Chat with GLM-4.6, keep a long-term memory of your preferences and projects, and bring in documents and code — all in one clean app that follows you across devices.</p>
-      <div class="cta">
-        <a class="btn primary" href="/app?mode=signup">Get started — it's free</a>
-        <a class="btn" href="/app?mode=login">Log in</a>
-      </div>
+  <header class="hub-head">
+    <span class="eyebrow">// launchpad</span>
+    <h1>Cryptic <span class="accent">Hub</span></h1>
+    <p class="hub-sub">Your private launchpad — every site you use and what it's for, one click away. Stored right here in your browser.</p>
+    <div class="toolbar">
+      <input id="search" class="search" placeholder="Search sites…" oninput="render()" autocomplete="off" />
+      <button class="btn primary" onclick="openAdd()">+ Add site</button>
+      <span class="count" id="count"></span>
     </div>
+  </header>
 
-    <!-- A look at the app -->
-    <div class="shot" aria-label="A preview of the ARIA app">
-      <div class="sb">
-        <div class="l"><div class="m">A</div><div class="n">ARIA</div></div>
-        <div class="row w"></div><div class="row x"></div><div class="row w"></div><div class="row"></div>
-      </div>
-      <div class="main">
-        <div class="bub u">What did we decide about the launch plan?</div>
-        <div class="bub a">You're aiming for next Friday and wanted the landing page done first — want me to draft the checklist?</div>
-        <div class="bub u">Yes please, keep it short.</div>
-        <div class="inbar"><div class="ph">Ask ARIA anything…</div><div class="send">➤</div></div>
-      </div>
+  <section id="grid" class="grid"></section>
+
+  <div id="empty" class="empty" style="display:none">
+    <div class="big">Nothing here yet.</div>
+    <div>Add your first website — a name, its link, and what it does.</div>
+  </div>
+</div>
+
+<!-- Add / edit modal -->
+<div id="modal-back" class="modal-back" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <div class="modal-title" id="modal-title">Add a site</div>
+    <div class="field">
+      <label>Name</label>
+      <input id="f-name" type="text" placeholder="e.g. GitHub" onkeydown="if(event.key==='Enter')document.getElementById('f-url').focus()" />
     </div>
-  </section>
-
-  <section class="section">
-    <h2>Everything in one assistant</h2>
-    <p class="sub">Powerful where it counts, simple to use every day.</p>
-    <div class="grid">
-      <div class="card"><div class="ic">🤖</div><h3>Powered by GLM-4.6</h3><p>ARIA runs on GLM-4.6 over Ollama Cloud — capable and free to start, with nothing to configure. Add your own Ollama key anytime.</p></div>
-      <div class="card"><div class="ic">🔐</div><h3>Accounts &amp; sync</h3><p>Sign in with email or Google. Your memory and chats follow you on every device.</p></div>
-      <div class="card"><div class="ic">🧠</div><h3>Long-term memory</h3><p>ARIA remembers your preferences, projects, and goals — and quietly learns more as you chat.</p></div>
-      <div class="card"><div class="ic">📅</div><h3>Calendar &amp; reminders</h3><p>Built-in tools ARIA can use right from chat — add events and reminders just by asking in plain language.</p></div>
-      <div class="card"><div class="ic">📎</div><h3>Files &amp; code</h3><p>Drop in PDFs, text, and code files anywhere and ARIA reads the contents. (It's a text model, so image analysis isn't supported.)</p></div>
-      <div class="card"><div class="ic">🔎</div><h3>Live web search</h3><p>Get current answers with web search attached to your conversations.</p></div>
+    <div class="field">
+      <label>URL</label>
+      <input id="f-url" type="text" placeholder="github.com" />
     </div>
-  </section>
-
-  <section class="section">
-    <div class="strip">
-      <h2>Ready when you are</h2>
-      <div class="cta" style="justify-content:center">
-        <a class="btn primary" href="/app?mode=signup">Sign up</a>
-        <a class="btn" href="/app?mode=login">Log in</a>
-      </div>
+    <div class="field">
+      <label>What it does</label>
+      <textarea id="f-desc" rows="2" placeholder="Short note about this site…"></textarea>
     </div>
-  </section>
-
-  <section class="section" id="contact">
-    <div class="strip">
-      <h2>Get in touch</h2>
-      <p style="color:var(--text-2);margin:0 0 16px">Questions, feedback, or need help? We'd love to hear from you.</p>
-      <a class="btn primary" href="mailto:fanegf837@gmail.com">Contact us</a>
-      <div style="margin-top:12px;font-size:13px;color:var(--text-3)">fanegf837@gmail.com</div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal()">Cancel</button>
+      <button class="btn primary" onclick="saveSite()">Save</button>
     </div>
-  </section>
-
+  </div>
 </div>
 
 <footer>
-  <div><a href="/app?mode=login" style="text-decoration:none;color:inherit">Log in</a> · <a href="/app?mode=signup" style="text-decoration:none;color:inherit">Sign up</a> · <a href="mailto:fanegf837@gmail.com" style="text-decoration:none;color:inherit">Contact us</a></div>
+  <div><a href="/app" style="text-decoration:none;color:inherit">Open ARIA</a></div>
   <div style="margin-top:8px">Created by <span class="by">Savankumar Patel</span></div>
 </footer>
 
 <script>
-  (function(){ var ic=document.getElementById('theme-ic'); if(ic) ic.innerHTML = (document.documentElement.getAttribute('data-theme')==='dark') ? MOON : SUN; })();
+  const LS={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
+  function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+  function uid(){return Math.random().toString(36).slice(2,9)}
+  function loadSites(){try{return JSON.parse(LS.get('cryptic_hub_sites')||'[]')}catch(e){return []}}
+  function saveSites(a){LS.set('cryptic_hub_sites',JSON.stringify(a));render()}
+  function normalizeUrl(u){u=(u||'').trim();if(!u)return'';if(!/^https?:\/\//i.test(u))u='https://'+u;return u}
+  function hostOf(u){try{return new URL(normalizeUrl(u)).host.replace(/^www\./,'')}catch(e){return u||''}}
+
+  let editingId=null;
+
+  function render(){
+    const grid=document.getElementById('grid');
+    const sites=loadSites();
+    const q=(document.getElementById('search').value||'').toLowerCase().trim();
+    const filtered=sites.filter(s=>!q || ((s.name||'')+' '+(s.desc||'')+' '+(s.url||'')).toLowerCase().includes(q));
+    document.getElementById('count').textContent = sites.length ? (sites.length+' site'+(sites.length>1?'s':'')) : '';
+    document.getElementById('empty').style.display = sites.length ? 'none' : 'block';
+    grid.innerHTML='';
+    filtered.forEach(s=>{
+      const url=normalizeUrl(s.url);
+      const letter=(((s.name||'?').trim()[0])||'?').toUpperCase();
+      const card=document.createElement('div'); card.className='site';
+      card.innerHTML=
+        '<div class="site-top">'+
+          '<div class="site-av">'+esc(letter)+'</div>'+
+          '<div class="site-meta">'+
+            '<div class="site-name">'+esc(s.name||'Untitled')+'</div>'+
+            '<div class="site-host">'+esc(hostOf(url)||'—')+'</div>'+
+          '</div>'+
+        '</div>'+
+        '<div class="site-desc">'+esc(s.desc||'')+'</div>'+
+        '<div class="site-actions">'+
+          '<a class="btn primary sm" href="'+esc(url)+'" target="_blank" rel="noopener">Open &#8599;</a>'+
+          '<button class="icon-btn" title="Edit" onclick="openEdit(\''+s.id+'\')">&#9998;</button>'+
+          '<button class="icon-btn danger" title="Remove" onclick="removeSite(\''+s.id+'\')">&#10005;</button>'+
+        '</div>';
+      grid.appendChild(card);
+    });
+    // "Add site" tile always trails the grid
+    const add=document.createElement('div'); add.className='add-tile'; add.onclick=openAdd;
+    add.innerHTML='<div class="plus">+</div><div>Add site</div>';
+    grid.appendChild(add);
+  }
+
+  function showModal(){ document.getElementById('modal-back').style.display='flex'; setTimeout(()=>document.getElementById('f-name').focus(),50); }
+  function closeModal(){ document.getElementById('modal-back').style.display='none'; }
+  function setFields(n,u,d){ document.getElementById('f-name').value=n||''; document.getElementById('f-url').value=u||''; document.getElementById('f-desc').value=d||''; }
+  function openAdd(){ editingId=null; document.getElementById('modal-title').textContent='Add a site'; setFields('','',''); showModal(); }
+  function openEdit(id){ const s=loadSites().find(x=>x.id===id); if(!s)return; editingId=id; document.getElementById('modal-title').textContent='Edit site'; setFields(s.name,s.url,s.desc); showModal(); }
+  function saveSite(){
+    const name=document.getElementById('f-name').value.trim();
+    const url=document.getElementById('f-url').value.trim();
+    const desc=document.getElementById('f-desc').value.trim();
+    if(!name){ document.getElementById('f-name').focus(); return; }
+    if(!url){ document.getElementById('f-url').focus(); return; }
+    const sites=loadSites();
+    if(editingId){ const s=sites.find(x=>x.id===editingId); if(s){ s.name=name; s.url=url; s.desc=desc; } }
+    else { sites.push({id:uid(),name,url,desc}); }
+    saveSites(sites); closeModal();
+  }
+  function removeSite(id){ if(confirm('Remove this site from your hub?')) saveSites(loadSites().filter(s=>s.id!==id)); }
+
+  document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeModal(); });
+  (function(){ var ic=document.getElementById('theme-ic'); if(ic) ic.innerHTML=(document.documentElement.getAttribute('data-theme')==='dark')?MOON:SUN; })();
+  render();
 </script>
 </body>
 </html>

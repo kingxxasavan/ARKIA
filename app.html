@@ -400,9 +400,6 @@
         <button class="sb-icon-btn" id="theme-btn" onclick="toggleTheme()" title="Toggle theme">
           <svg id="theme-svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
         </button>
-        <button class="sb-icon-btn" id="settings-btn" onclick="toggleSettings()" title="Settings">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-        </button>
       </div>
     </div>
 
@@ -415,27 +412,11 @@
     <div class="sb-list" id="chat-list"></div>
 
     <div class="sb-account-wrap" id="sb-account-wrap" style="display:none">
-      <div id="account-menu" class="account-menu" style="display:none">
-        <a class="account-menu-item" href="/" style="text-decoration:none">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9.5L12 3l9 6.5"/><path d="M5 10v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V10"/><path d="M9 21v-6h6v6"/></svg>
-          Home
-        </a>
-        <div class="account-menu-sep"></div>
-        <button class="account-menu-item" onclick="openSettings();closeAccountMenu()">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-          Settings
-        </button>
-        <div class="account-menu-sep"></div>
-        <button class="account-menu-item danger" onclick="ariaSignOut();closeAccountMenu()">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-          Sign out
-        </button>
-      </div>
-      <div class="sb-account" id="sb-account" onclick="toggleAccountMenu(event)" title="Account">
+      <div class="sb-account" id="sb-account" onclick="openSettings()" title="Settings &amp; account">
         <div class="sb-av" id="sb-av">A</div>
         <div class="sb-account-meta">
           <div class="sb-account-name" id="sb-account-name">Account</div>
-          <div class="sb-account-sub" id="sb-account-sub">Signed in</div>
+          <div class="sb-account-sub" id="sb-account-sub">Settings</div>
         </div>
       </div>
     </div>
@@ -452,25 +433,16 @@
     </div>
     <div class="sp-body">
 
-      <!-- Account (shown only when signed in) -->
-      <div class="sg" id="account-sg" style="display:none">
-        <div class="sg-label">Account</div>
-        <div style="display:flex;align-items:center;gap:10px;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:10px 11px;">
-          <div class="sb-av" id="account-av" style="width:34px;height:34px;font-size:15px">A</div>
-          <div style="flex:1;min-width:0">
-            <div id="account-name" style="font-size:13px;font-weight:600;color:var(--text-1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">—</div>
-            <div id="account-email" style="font-size:11px;color:var(--text-3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">—</div>
-          </div>
-          <button class="btn" onclick="ariaSignOut()">Sign out</button>
+      <!-- Username (shown only when signed in) -->
+      <div class="sg" id="username-sg" style="display:none">
+        <div class="sg-label">Username</div>
+        <div style="display:flex;gap:6px">
+          <input id="account-username" class="key-input" type="text" placeholder="Your display name" onkeydown="if(event.key==='Enter')ariaSaveName()" />
+          <button class="btn primary" onclick="ariaSaveName()">Save</button>
         </div>
-        <div class="sg-label" style="margin-top:10px">Username</div>
-        <div class="mem-add">
-          <input id="account-username" class="key-input" type="text" placeholder="Your display name" />
-          <button class="fetch-btn" onclick="ariaSaveName()">Save</button>
-        </div>
-        <div class="sg-desc" style="margin-top:6px">Your memory and chats are saved to your account and follow you across devices — no importing needed.</div>
+        <div class="sg-desc" style="margin-top:6px">What ARIA calls you. Your memory and chats are saved to your account and follow you across devices.</div>
       </div>
-      <div class="sp-divider" id="account-divider" style="display:none"></div>
+      <div class="sp-divider" id="username-divider" style="display:none"></div>
 
       <!-- Model (locked to GLM-4.6 via Ollama Cloud) -->
       <div class="sg">
@@ -516,6 +488,24 @@
         <textarea id="sys-p" class="sp-textarea" placeholder="You are a helpful assistant…">You are ARIA, a personal AI assistant running on GLM-4.6 via Ollama. Be direct, accurate, and concise — match the length of your reply to the question and skip preamble, filler, and unsolicited follow-up suggestions. Reason carefully on hard problems but give only the useful conclusion unless asked to show your work. Use markdown — headings, bullets, tables, fenced code blocks — only when it genuinely improves clarity (code, comparisons, multi-step instructions). You have a long-term memory of the user and built-in calendar, reminder, and memory tools; use them naturally when relevant. You are a text model and cannot see images, but you can read documents the user attaches.</textarea>
       </div>
 
+      <div class="sp-divider" id="account-divider" style="display:none"></div>
+
+      <!-- Account (shown only when signed in) -->
+      <div class="sg" id="account-sg" style="display:none">
+        <div class="sg-label">Account</div>
+        <div style="display:flex;align-items:center;gap:10px;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:10px 11px;">
+          <div class="sb-av" id="account-av" style="width:34px;height:34px;font-size:15px">A</div>
+          <div style="flex:1;min-width:0">
+            <div id="account-name" style="font-size:13px;font-weight:600;color:var(--text-1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">—</div>
+            <div id="account-email" style="font-size:11px;color:var(--text-3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">—</div>
+          </div>
+        </div>
+        <div class="row-2" style="margin-top:8px">
+          <a class="btn" href="/" style="text-decoration:none;display:flex;align-items:center;justify-content:center">Cryptic Hub</a>
+          <button class="btn" onclick="ariaSignOut()">Sign out</button>
+        </div>
+      </div>
+
     </div>
   </div>
 
@@ -523,7 +513,6 @@
   <main id="main">
     <div id="topbar">
       <span class="tb-title" id="tb-title">New conversation</span>
-      <span class="tb-badge" id="b-search">Search OFF</span>
       <span class="model-badge" style="background:rgba(74,180,100,0.1);color:var(--green);border:1px solid rgba(74,180,100,0.2)">GLM-4.6</span>
     </div>
 
@@ -778,9 +767,7 @@ async function ariaAuthSubmit(){
   btn.disabled=false; btn.textContent=t;
 }
 // Account dropdown menu
-function toggleAccountMenu(e){ if(e) e.stopPropagation(); const m=document.getElementById('account-menu'); if(m) m.style.display = m.style.display==='block'?'none':'block'; }
-function closeAccountMenu(){ const m=document.getElementById('account-menu'); if(m) m.style.display='none'; }
-document.addEventListener('click', closeAccountMenu);
+// (The account chip now opens Settings directly; the old dropdown menu was removed.)
 // Username chosen at signup — saved as the Firebase display name, used to greet you.
 async function ariaSaveSignupName(){
   const name=document.getElementById('name-input').value.trim();
@@ -883,11 +870,12 @@ function countQuery(){
 // Called by the Firebase module on every auth-state change (and once if unconfigured).
 window.onAriaUser=function(user){
   const accSg=document.getElementById('account-sg'), accDiv=document.getElementById('account-divider');
+  const usSg=document.getElementById('username-sg'), usDiv=document.getElementById('username-divider');
   const sbWrap=document.getElementById('sb-account-wrap');
+  const setAcc=(d)=>{ [accSg,accDiv,usSg,usDiv,sbWrap].forEach(el=>{ if(el) el.style.display=d; }); };
   if(!(window.ARIA_FB&&window.ARIA_FB.configured)){
     showAuthGate('hidden');
-    if(accSg) accSg.style.display='none'; if(accDiv) accDiv.style.display='none';
-    if(sbWrap) sbWrap.style.display='none';
+    setAcc('none');
     return;
   }
   if(user){
@@ -898,14 +886,11 @@ window.onAriaUser=function(user){
       window.ARIA_UID=null;
       showAuthGate('verify');
       const ve=document.getElementById('verify-email'); if(ve) ve.textContent=email||'your email';
-      if(accSg) accSg.style.display='none'; if(accDiv) accDiv.style.display='none';
-      if(sbWrap) sbWrap.style.display='none';
+      setAcc('none');
       return;
     }
     showAuthGate('hidden');
-    if(accSg) accSg.style.display='';
-    if(accDiv) accDiv.style.display='';
-    if(sbWrap) sbWrap.style.display='';
+    setAcc('');
     const emailEl=document.getElementById('account-email'); if(emailEl) emailEl.textContent=email||'Signed in';
     const unEl=document.getElementById('account-username'); if(unEl) unEl.value=user.displayName||'';
     applyAccountName(user.displayName||'', email);
@@ -1075,8 +1060,6 @@ function buildWelcome(){
   feats.search=false; feats.think=false;
   document.getElementById('pill-search').classList.toggle('on',feats.search);
   document.getElementById('pill-think').classList.toggle('on',feats.think);
-  document.getElementById('b-search').textContent=feats.search?'Search ON':'Search OFF';
-  document.getElementById('b-search').classList.toggle('on',feats.search);
 
   applyTheme(LS.get('aria_theme')||'dark');
   renderMemory();
@@ -1129,8 +1112,8 @@ function openAICompatTarget(){
 //  PANELS
 // ════════════════════════════════════════════════
 function toggleSettings(){ settOpen?closeSettings():openSettings(); }
-function openSettings(){ settOpen=true; document.getElementById('settings-panel').classList.add('open'); document.getElementById('backdrop').classList.add('open'); document.getElementById('settings-btn').classList.add('active'); }
-function closeSettings(){ settOpen=false; document.getElementById('settings-panel').classList.remove('open'); document.getElementById('settings-btn').classList.remove('active'); document.getElementById('backdrop').classList.remove('open'); }
+function openSettings(){ settOpen=true; document.getElementById('settings-panel').classList.add('open'); document.getElementById('backdrop').classList.add('open'); }
+function closeSettings(){ settOpen=false; document.getElementById('settings-panel').classList.remove('open'); document.getElementById('backdrop').classList.remove('open'); }
 function closeAllPanels(){ closeSettings(); document.getElementById('backdrop').classList.remove('open'); }
 
 function toggleKey(inputId,svgId){
@@ -1143,7 +1126,6 @@ function toggleKey(inputId,svgId){
 
 function togglePill(f){
   feats[f]=!feats[f]; document.getElementById('pill-'+f).classList.toggle('on',feats[f]); saveFeatFlags();
-  if(f==='search'){ const bs=document.getElementById('b-search'); bs.textContent=feats.search?'Search ON':'Search OFF'; bs.classList.toggle('on',feats.search); }
 }
 
 // ════════════════════════════════════════════════
