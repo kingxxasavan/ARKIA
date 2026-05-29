@@ -60,16 +60,31 @@ In the [Firebase console](https://console.firebase.google.com) for project **ari
 ## 2. Deploy
 
 ### Option A — Vercel
-1. Import this repo in Vercel (it auto-detects `vercel.json`).
-2. **Settings → Environment Variables** — set your Ollama Cloud key so calls are proxied server-side:
+1. Import this repo in Vercel (it auto-detects `vercel.json`). The backend in `server.js`
+   runs as a serverless function via `api/index.js`; `vercel.json` routes every `/api/*`
+   request to it, while the HTML is served statically.
+2. **Settings → Environment Variables**, then redeploy:
 
-   | Variable | Where to get it |
-   |----------|-----------------|
-   | `OLLAMA_KEY` | ollama.com/settings/keys |
+   | Variable | Purpose / where to get it |
+   |----------|---------------------------|
+   | `OLLAMA_KEY` | Ollama Cloud key (ollama.com/settings/keys) — enables proxied chat, web search, and AI import for everyone, no per-user key needed |
+   | `LOCK_SYSTEM_PROMPT` + `LOCKED_SYSTEM_PROMPT` | *(optional)* always-reliable server-enforced locked prompt |
+   | `FIREBASE_PROJECT` + `FIREBASE_API_KEY` | *(optional)* let the server read the **admin panel's** locked prompt from Firestore — requires an **unrestricted** API key (see below) |
 
 3. Deploy, then add the Vercel domain to Firebase **Authorized domains** (step 1.3).
 
-With the key set, `server.js` proxies the GLM-4.6 calls server-side (no key in the browser).
+With `OLLAMA_KEY` set, the function proxies GLM-4.6 calls server-side (no key in the browser),
+which is also what powers `/api/search` and the AI bookmark import.
+
+> **Note on the serverless API key.** Firebase's default web API key is HTTP-referrer-restricted,
+> so a server can't read Firestore with it. For panel-controlled prompt enforcement, create a
+> dedicated key in Google Cloud Console → APIs & Services → Credentials: **Create credentials →
+> API key**, then edit it → **Application restrictions: None**, **API restrictions: Cloud Firestore API**.
+> Put that key in `FIREBASE_API_KEY`. (Or skip Firestore and use the `LOCK_SYSTEM_PROMPT` env vars.)
+
+> **Streaming limit.** Vercel serverless functions cap at 60s (`maxDuration` in `vercel.json`).
+> Very long single generations can be cut off; for unlimited streaming use a always-on Node host
+> (Replit/Render) running `server.js` directly.
 
 ### Option B — Firebase Hosting (static)
 ```bash
