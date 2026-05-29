@@ -388,8 +388,10 @@
       items.forEach(s=>row.appendChild(buildCard(s,idx++)));
       block.appendChild(row); grid.appendChild(block);
     };
+    // Uncategorized sites stay at the top (where existing ones were); named
+    // categories follow, so importing into categories never buries old entries.
+    if(uncat.length) addBlock(named.size?'Uncategorized':'', uncat);
     named.forEach((items,label)=>addBlock(label,items));
-    if(uncat.length) addBlock(named.size?'Other':'', uncat);
     if(isAdmin){
       const block=document.createElement('div'); block.className='cat-block';
       const row=document.createElement('div'); row.className='cat-grid';
@@ -481,7 +483,9 @@
       catRule+' If a URL is missing, infer the correct official homepage from the name. If you are unsure of a site, '+
       'still give your best guess. Return ONLY a JSON array, no prose, no code fences.';
     const out=await ariaComplete([{role:'system',content:sys},{role:'user',content:list}]);
-    let txt=out.trim().replace(/^```(?:json)?/i,'').replace(/```$/,'').trim();
+    // Models may wrap output in <think> blocks or ```json fences — strip them.
+    let txt=String(out).replace(/<think>[\s\S]*?<\/think>/gi,'').trim();
+    txt=txt.replace(/^```(?:json)?/i,'').replace(/```$/,'').trim();
     const a=txt.indexOf('['), b=txt.lastIndexOf(']');
     if(a>=0&&b>a) txt=txt.slice(a,b+1);
     const arr=JSON.parse(txt);
@@ -507,16 +511,17 @@
         const enriched=await enrichWithAria(entries, forcedCat);
         added=enriched.filter(e=>e&&(e.url||e.name)).map(e=>{
           const url=(e.url||'').trim();
-          return { id:uid(), name:(e.name||'').trim()||(hostOf(normalizeUrl(url))||url), url, desc:(e.desc||'').trim(), category:(forcedCat||(e.category||'').trim()), image:siteIcon(url) };
-        }).filter(s=>s.url);
+          return { id:uid(), name:(e.name||'').trim()||(hostOf(normalizeUrl(url))||url), url, desc:(e.desc||'').trim().slice(0,200), category:(forcedCat||(e.category||'').trim()), image:siteIcon(url) };
+        }).filter(s=>s.url&&looksUrl(s.url));
         if(!added.length) throw new Error('no usable results');
       }catch(err){
         // Fall back to a plain import so the admin never loses their paste.
-        note.style.color='var(--accent)';
-        added=rawImport(entries, forcedCat);
         lock(false);
-        if(!added.length){ note.textContent='ARIA couldn’t be reached and no valid links were found. Add URLs (not just names) or try again.'; return; }
-        sites.push(...added); persist(); render(); closeImport();
+        const raw=rawImport(entries, forcedCat);
+        note.style.color='var(--accent)';
+        if(!raw.length){ note.textContent='ARIA couldn’t sort these automatically. Put a URL on each line (e.g. “Figma | figma.com”) or try again.'; return; }
+        const n=commitImport(raw);
+        note.textContent='ARIA was unavailable, so I added the '+n+' line'+(n!==1?'s':'')+' that already had links.';
         return;
       }
       lock(false);
@@ -524,13 +529,22 @@
       added=rawImport(entries, forcedCat);
       if(!added.length){ note.style.color='var(--accent)'; note.textContent='No valid links found — turn on ARIA to resolve names, or paste full URLs.'; return; }
     }
-    sites.push(...added); persist(); render(); closeImport();
+    commitImport(added); closeImport();
+  }
+
+  // Append new sites to the existing list (never replacing it), skipping any
+  // whose URL is already in the directory. Returns how many were actually added.
+  function commitImport(incoming){
+    const have=new Set(sites.map(s=>(hostOf(s.url)+normalizeUrl(s.url)).toLowerCase()));
+    const fresh=incoming.filter(s=>{ const k=(hostOf(s.url)+normalizeUrl(s.url)).toLowerCase(); if(have.has(k)) return false; have.add(k); return true; });
+    if(fresh.length){ sites=sites.concat(fresh); persist(); render(); }
+    return fresh.length;
   }
 
   // Non-AI import: keep only entries that already have a usable URL.
   function rawImport(entries, forcedCat){
     return entries.filter(e=>e.url&&looksUrl(e.url)).map(e=>{
-      const url=e.url; return { id:uid(), name:e.name||(hostOf(normalizeUrl(url))||url), url, desc:e.desc||'', category:forcedCat||'', image:siteIcon(url) };
+      const url=e.url; return { id:uid(), name:e.name||(hostOf(normalizeUrl(url))||url), url, desc:(e.desc||'').slice(0,200), category:forcedCat||'', image:siteIcon(url) };
     });
   }
 

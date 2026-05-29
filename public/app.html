@@ -1630,11 +1630,18 @@ function renderModelContent(raw){
 function stripThink(s){ return s.replace(/<think>[\s\S]*?<\/think>/g,'').trim(); }
 
 async function ddgSearch(query){
+  // Routed through the server proxy (/api/search) — browsers can't call search
+  // engines directly because of CORS. Returns a compact, model-readable list.
   try{
-    const r=await fetch(`https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1&skip_disambig=1`);
+    const r=await fetch('/api/search?q='+encodeURIComponent(query));
+    if(!r.ok) throw new Error('http '+r.status);
     const d=await r.json();
-    return d.AbstractText||d.Answer||(d.RelatedTopics||[]).slice(0,3).map(t=>t.Text).filter(Boolean).join('\n')||'No results found.';
-  }catch{ return 'Search failed.'; }
+    const items=(d.results||[]).slice(0,6);
+    if(!items.length) return 'No web results found for "'+query+'". Answer from your own knowledge and say it may be out of date.';
+    return 'Web search results for "'+query+'":\n\n'+items.map((x,i)=>`${i+1}. ${x.title}\n   ${x.url}${x.snippet?'\n   '+x.snippet:''}`).join('\n\n');
+  }catch(e){
+    return 'Web search is unavailable right now. Answer from your own knowledge instead and note that it may not be current.';
+  }
 }
 
 
