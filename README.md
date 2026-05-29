@@ -29,11 +29,24 @@ In the [Firebase console](https://console.firebase.google.com) for project **ari
        match /chats/{uid} {
          allow read, write: if request.auth != null && request.auth.uid == uid;
        }
-       // Curated homepage directory: anyone can read, only the admin can write.
+       // Admin accounts — can curate the directory AND edit site-wide config.
+       function isHubAdmin() {
+         return request.auth != null
+           && request.auth.token.email in [
+                'kingasd8970@gmail.com',
+                'fanegf837@gmail.com',
+                'kingfan837@gmail.com'
+              ];
+       }
+       // Curated homepage directory: anyone reads, only admins write.
        match /hub/{docId} {
          allow read: if true;
-         allow write: if request.auth != null
-                      && request.auth.token.email == 'kingasd8970@gmail.com';
+         allow write: if isHubAdmin();
+       }
+       // Site-wide config (active model, announcement, brand, theme): anyone reads, only admins write.
+       match /config/{docId} {
+         allow read: if true;
+         allow write: if isHubAdmin();
        }
      }
    }
@@ -81,6 +94,8 @@ otherwise you enter them in Settings.
 
 ## Notes
 - The **landing page** is `index.html` (served at `/`); the **chat app** is `app.html` (served at `/app`). Root copies mirror the `public/` versions, which is what gets served.
-- The landing page is a **curated directory**: the website list lives in Firestore at `hub/main` and is **public to read** but **only the admin can edit it**. The admin is the account whose email is `kingasd8970@gmail.com` — sign in via the **Sign in** button on the homepage to reveal the add/edit/remove controls. Everyone else sees a read-only directory. (To change the admin, update `ADMIN_EMAIL` in `index.html` / `public/index.html` and the email in the `hub` Firestore rule.)
+- The landing page is a **curated directory**: the website list lives in Firestore at `hub/main` and is **public to read** but **only admins can edit it**. Sign in via the **Sign in** button on the homepage with an admin account to reveal the add/edit/remove controls; everyone else sees a read-only directory.
+- **Admin accounts** are defined in three places that must stay in sync: `ADMIN_EMAILS` in `index.html`/`public/index.html`, `ADMIN_EMAILS` in `app.html`/`public/app.html`, and the `isHubAdmin()` list in the Firestore rules. Current admins: `kingasd8970@gmail.com`, `fanegf837@gmail.com`, `kingfan837@gmail.com`.
+- **Site-wide admin controls** live in the chat app under **Settings → Admin controls** (visible only to admins) and are stored in Firestore at `config/app` (public read, admin-only write). From there an admin can, for everyone: change the **active model**, post an **announcement popup**, set the **app/homepage name and tagline**, and set the **default theme & accent color**. Both the homepage and the chat app subscribe to this config live. Per-user message limits (the "ban"/quota controls) remain at `limits/{uid}` and admins bypass them.
 - Per-user data is stored as `memories/{uid}` and `chats/{uid}` in Firestore; local storage is the offline cache.
 - DRM streaming and a full in-app web browser are intentionally **not** included — this app is focused on AI.

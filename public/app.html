@@ -394,7 +394,7 @@
     <div class="sb-top">
       <a class="logo" href="/" title="Back to home" style="text-decoration:none">
         <div class="logo-mark">A</div>
-        <span class="logo-name">ARIA</span>
+        <span class="logo-name" id="logo-name">ARIA</span>
       </a>
       <div class="sb-actions">
         <button class="sb-icon-btn" id="theme-btn" onclick="toggleTheme()" title="Toggle theme">
@@ -443,6 +443,38 @@
         <div class="sg-desc" style="margin-top:6px">What ARIA calls you. Your memory and chats are saved to your account and follow you across devices.</div>
       </div>
       <div class="sp-divider" id="username-divider" style="display:none"></div>
+
+      <!-- Admin controls (visible to admins only) — changes apply to ALL users -->
+      <div class="sg" id="admin-sg" style="display:none">
+        <div class="sg-label">⚙︎ Admin controls</div>
+        <div class="sg-desc">You're an admin. Changes here apply to <strong>everyone</strong> — the active model, a site-wide announcement, branding, and the default theme.</div>
+
+        <div class="sg-sublabel">Active model (all users)</div>
+        <input id="adm-model" class="key-input" type="text" placeholder="glm-4.6" autocomplete="off" />
+        <div class="sg-desc">Ollama Cloud model id. Default <code class="inl">glm-4.6</code>.</div>
+
+        <div class="sg-sublabel">Announcement / popup</div>
+        <textarea id="adm-ann" class="key-input" rows="2" placeholder="A message shown to all users…"></textarea>
+        <label style="display:flex;align-items:center;gap:8px;margin-top:6px;font-size:12px;color:var(--text-2);cursor:pointer"><input id="adm-ann-on" type="checkbox" /> Show this announcement to users</label>
+
+        <div class="sg-sublabel">Chat app name</div>
+        <input id="adm-appname" class="key-input" type="text" placeholder="ARIA" autocomplete="off" />
+
+        <div class="sg-sublabel">Homepage name</div>
+        <input id="adm-hubname" class="key-input" type="text" placeholder="Cryptic Hub" autocomplete="off" />
+
+        <div class="sg-sublabel">Homepage tagline</div>
+        <input id="adm-hubtagline" class="key-input" type="text" placeholder="Short line under the homepage title…" autocomplete="off" />
+
+        <div class="sg-sublabel">Default theme &amp; accent</div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <select id="adm-theme" class="sp-select" style="flex:1"><option value="dark">Dark</option><option value="light">Light</option></select>
+          <input id="adm-accent" type="color" value="#cc7a3a" title="Accent color" style="width:46px;height:38px;border:1px solid var(--border-md);border-radius:10px;background:var(--bg-input);cursor:pointer" />
+        </div>
+
+        <button class="btn primary full" id="adm-save" onclick="saveAdminConfig()" style="margin-top:12px">Save changes</button>
+      </div>
+      <div class="sp-divider" id="admin-divider" style="display:none"></div>
 
       <!-- Model (locked to GLM-4.6 via Ollama Cloud) -->
       <div class="sg">
@@ -513,7 +545,7 @@
   <main id="main">
     <div id="topbar">
       <span class="tb-title" id="tb-title">New conversation</span>
-      <span class="model-badge" style="background:rgba(74,180,100,0.1);color:var(--green);border:1px solid rgba(74,180,100,0.2)">GLM-4.6</span>
+      <span class="model-badge js-model-badge" style="background:rgba(74,180,100,0.1);color:var(--green);border:1px solid rgba(74,180,100,0.2)">GLM-4.6</span>
     </div>
 
     <div id="messages"></div>
@@ -581,6 +613,16 @@
     <div class="auth-sub">What should ARIA call you?</div>
     <input id="name-input" class="auth-input" type="text" placeholder="Your name" autocomplete="given-name" onkeydown="if(event.key==='Enter')ariaSaveSignupName()">
     <button class="auth-btn primary" onclick="ariaSaveSignupName()">Continue</button>
+  </div>
+</div>
+
+<!-- Admin announcement / popup (shown to all users when enabled) -->
+<div id="ann-back" style="display:none;position:fixed;inset:0;z-index:6000;background:rgba(0,0,0,0.5);align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(3px)" onclick="if(event.target===this)closeAnnouncement()">
+  <div style="width:100%;max-width:420px;background:var(--bg);border:1px solid var(--border-md);border-radius:18px;box-shadow:var(--shadow-lg);padding:26px;text-align:center">
+    <div style="font-size:30px;line-height:1;margin-bottom:8px">📣</div>
+    <div style="font-size:18px;font-weight:650;color:var(--text-1);margin-bottom:8px">Announcement</div>
+    <div id="ann-body" style="font-size:14px;color:var(--text-2);line-height:1.6;white-space:pre-wrap"></div>
+    <button class="btn primary full" style="margin-top:18px" onclick="closeAnnouncement()">Got it</button>
   </div>
 </div>
 
@@ -839,7 +881,7 @@ async function ariaCheckVerification(){
 }
 
 // ── Per-account usage limits (best-effort, stored in Firestore) ──
-const ADMIN_EMAILS=['fanegf837@gmail.com'];
+const ADMIN_EMAILS=['kingasd8970@gmail.com','fanegf837@gmail.com','kingfan837@gmail.com'];
 const QUERY_LIMIT=25, LIMIT_WINDOW_MS=3*60*60*1000;
 async function loadUserUsage(user){
   const admin=ADMIN_EMAILS.includes((user.email||'').toLowerCase());
@@ -891,6 +933,10 @@ window.onAriaUser=function(user){
     }
     showAuthGate('hidden');
     setAcc('');
+    const showAdmin=isAdminEmail(email)?'':'none';
+    const adminSg=document.getElementById('admin-sg'); if(adminSg) adminSg.style.display=showAdmin;
+    const adminDiv=document.getElementById('admin-divider'); if(adminDiv) adminDiv.style.display=showAdmin;
+    if(isAdminEmail(email)) fillAdminForm();
     const emailEl=document.getElementById('account-email'); if(emailEl) emailEl.textContent=email||'Signed in';
     const unEl=document.getElementById('account-username'); if(unEl) unEl.value=user.displayName||'';
     applyAccountName(user.displayName||'', email);
@@ -909,6 +955,8 @@ window.onAriaUser=function(user){
     showAuthGate('login');
     if(accSg) accSg.style.display='none'; if(accDiv) accDiv.style.display='none';
     if(sbWrap) sbWrap.style.display='none';
+    const adminSg=document.getElementById('admin-sg'); if(adminSg) adminSg.style.display='none';
+    const adminDiv=document.getElementById('admin-divider'); if(adminDiv) adminDiv.style.display='none';
   }
 };
 // Safety net: if Firebase never loads (e.g. blocked), don't get stuck on the spinner.
@@ -1078,7 +1126,68 @@ function applyTheme(t){
   const svg=document.getElementById('theme-svg'); if(svg) svg.innerHTML = t==='dark'?SUN_ICON:MOON_ICON;
   const btn=document.getElementById('theme-btn'); if(btn) btn.title = t==='dark'?'Switch to light mode':'Switch to dark mode';
 }
-function toggleTheme(){ applyTheme(document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark'); }
+function toggleTheme(){ try{ LS.set('aria_theme_choice','1'); }catch(_){} applyTheme(document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark'); }
+
+// ── Admin-controlled app config (model, announcement, brand, theme) ──
+// Applied to EVERY user; only admins can edit it (see the Admin controls in Settings).
+window.APP_CONFIG = {};
+function isAdminEmail(email){ return ADMIN_EMAILS.includes((email||'').toLowerCase()); }
+window.onAriaConfig = function(cfg){ window.APP_CONFIG = cfg || {}; applyAppConfig(); };
+function applyAppConfig(){
+  const c = window.APP_CONFIG || {};
+  const name = (c.appName||'').trim() || 'ARIA';
+  document.title = name;
+  const ln=document.getElementById('logo-name'); if(ln) ln.textContent=name;
+  const model=(c.model||'').trim() || 'glm-4.6';
+  document.querySelectorAll('.js-model-badge').forEach(el=>{ el.textContent=model.toUpperCase(); });
+  if(c.accent) document.documentElement.style.setProperty('--accent', c.accent);
+  if(c.themeDefault && !LS.get('aria_theme_choice')) applyTheme(c.themeDefault==='dark'?'dark':'light');
+  fillAdminForm();
+  maybeShowAnnouncement();
+}
+function fillAdminForm(){
+  const c=window.APP_CONFIG||{};
+  const set=(id,v)=>{ const el=document.getElementById(id); if(el && document.activeElement!==el) el.value=v; };
+  set('adm-model', c.model||'glm-4.6');
+  set('adm-appname', c.appName||'ARIA');
+  set('adm-hubname', c.hubName||'Cryptic Hub');
+  set('adm-hubtagline', c.hubTagline||'');
+  set('adm-ann', c.annText||'');
+  set('adm-accent', c.accent||'#cc7a3a');
+  set('adm-theme', c.themeDefault||'dark');
+  const annE=document.getElementById('adm-ann-on'); if(annE) annE.checked=!!c.annEnabled;
+}
+function saveAdminConfig(){
+  if(!(window.ARIA_FB&&window.ARIA_FB.configured)){ showToast('Not connected.'); return; }
+  const prev=window.APP_CONFIG||{};
+  const g=(id)=>{ const el=document.getElementById(id); return el?el.value:''; };
+  const data={
+    model:(g('adm-model')||'').trim()||'glm-4.6',
+    appName:(g('adm-appname')||'').trim()||'ARIA',
+    hubName:(g('adm-hubname')||'').trim()||'Cryptic Hub',
+    hubTagline:(g('adm-hubtagline')||'').trim(),
+    annText:(g('adm-ann')||'').trim(),
+    annEnabled:!!document.getElementById('adm-ann-on').checked,
+    accent:g('adm-accent')||'#cc7a3a',
+    themeDefault:g('adm-theme')||'dark',
+  };
+  // Bump the announcement version when the text changes or it's newly turned on, so users see it again.
+  data.annUpdated = (data.annText!==(prev.annText||'') || (data.annEnabled && !prev.annEnabled)) ? Date.now() : (prev.annUpdated||0);
+  const btn=document.getElementById('adm-save'); if(btn){ btn.disabled=true; btn.textContent='Saving…'; }
+  window.ARIA_FB.saveConfig(data)
+    .then(()=>{ if(btn){ btn.textContent='Saved ✓'; setTimeout(()=>{ btn.textContent='Save changes'; btn.disabled=false; },1200); } })
+    .catch(e=>{ if(btn){ btn.textContent='Save changes'; btn.disabled=false; } showToast('Save failed: '+(e&&e.message||e)); });
+}
+function maybeShowAnnouncement(){
+  const c=window.APP_CONFIG||{};
+  const back=document.getElementById('ann-back'); if(!back) return;
+  if(!c.annEnabled || !(c.annText||'').trim()){ back.style.display='none'; return; }
+  const ver=String(c.annUpdated||0);
+  if(LS.get('aria_ann_seen')===ver){ back.style.display='none'; return; }
+  document.getElementById('ann-body').textContent=c.annText;
+  back.style.display='flex'; window._annVer=ver;
+}
+function closeAnnouncement(){ const back=document.getElementById('ann-back'); if(back) back.style.display='none'; if(window._annVer) LS.set('aria_ann_seen',window._annVer); }
 
 // ── Safe localStorage wrapper ──────────────────
 
@@ -1095,8 +1204,8 @@ function hasKeyForProvider(){ return !!ownKey() || serverHasKey(); }
 // ════════════════════════════════════════════════
 //  PROVIDER + MODEL
 // ════════════════════════════════════════════════
-// Locked: ARIA runs only on GLM-4.6 over Ollama Cloud.
-function activeModel(){ return 'glm-4.6'; }
+// Default GLM-4.6 over Ollama Cloud; admins can change the model for everyone via config.
+function activeModel(){ const m=(window.APP_CONFIG&&window.APP_CONFIG.model)||'glm-4.6'; return String(m).trim()||'glm-4.6'; }
 
 function endpoint(target,path){ return target.base+path; }
 
@@ -1475,7 +1584,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/fireba
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword,
          signOut, GoogleAuthProvider, signInWithPopup, setPersistence, browserLocalPersistence,
          updateProfile, sendEmailVerification } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
-import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+import { getFirestore, doc, getDoc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyC3e8T0nsoyey0EA9ozQbt9o5THI4pGzng",
@@ -1508,7 +1617,13 @@ try {
     loadUsage: async (uid) => { const s = await getDoc(doc(db, 'usage', uid)); return s.exists() ? s.data() : null; },
     saveUsage: async (uid, data) => { await setDoc(doc(db, 'usage', uid), data); },
     loadLimit: async (uid) => { try{ const s = await getDoc(doc(db, 'limits', uid)); return s.exists() ? s.data() : null; }catch(e){ return null; } },
+    loadConfig: async () => { try{ const s = await getDoc(doc(db, 'config', 'app')); return s.exists() ? s.data() : null; }catch(e){ return null; } },
+    saveConfig: (data) => setDoc(doc(db, 'config', 'app'), { ...data, updated: Date.now() }, { merge: true }),
   };
+  // Live app config (admin-controlled): model, announcement, brand, theme — applied to every user.
+  onSnapshot(doc(db, 'config', 'app'),
+    (s) => { if (window.onAriaConfig) window.onAriaConfig(s.exists() ? s.data() : {}); },
+    (e) => console.error('Config read failed:', e));
   onAuthStateChanged(auth, (user) => { if (window.onAriaUser) window.onAriaUser(user); });
 } catch (e) {
   console.error('Firebase init failed:', e);

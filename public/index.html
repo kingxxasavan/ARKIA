@@ -149,7 +149,7 @@
     var cur=document.documentElement.getAttribute('data-theme')==='dark'?'dark':'light';
     var next=cur==='dark'?'light':'dark';
     document.documentElement.setAttribute('data-theme', next);
-    try{ localStorage.setItem('aria_theme', next); }catch(e){}
+    try{ localStorage.setItem('aria_theme', next); localStorage.setItem('aria_theme_choice','1'); }catch(e){}
     var ic=document.getElementById('theme-ic'); if(ic) ic.innerHTML = next==='dark' ? MOON : SUN;
   }
 </script>
@@ -160,7 +160,7 @@
 
 <div class="wrap">
   <nav>
-    <a class="brand" href="/"><div class="mark">◆</div><div class="brand-name">Cryptic Hub</div></a>
+    <a class="brand" href="/"><div class="mark">◆</div><div class="brand-name js-brand-name">Cryptic Hub</div></a>
     <div class="nav-links">
       <span class="admin-chip" id="admin-chip"><span class="dot"></span>Admin</span>
       <a class="btn ghost" href="/app">Open ARIA</a>
@@ -173,7 +173,7 @@
 
   <header class="hub-head">
     <span class="eyebrow">Curated hub · powered by ARIA</span>
-    <h1>Cryptic <span class="accent">Hub</span></h1>
+    <h1 class="js-brand-name">Cryptic <span class="accent">Hub</span></h1>
     <p class="hub-sub">A calm, curated home for the websites and tools we trust — every link with a note on what it's for, one click away. Paired with <strong>ARIA</strong>, our personal AI assistant.</p>
   </header>
 
@@ -262,13 +262,23 @@
   </div>
 </div>
 
+<!-- Admin announcement / popup (shown to all visitors when enabled) -->
+<div id="ann-back" class="modal-back" onclick="if(event.target===this)closeAnnouncement()">
+  <div class="modal" style="max-width:420px;text-align:center">
+    <div style="font-size:30px;line-height:1;margin-bottom:6px">📣</div>
+    <div class="modal-title" style="margin-bottom:8px">Announcement</div>
+    <div id="ann-body" style="font-size:14px;color:var(--text-2);line-height:1.6;white-space:pre-wrap;margin-bottom:18px"></div>
+    <button class="btn primary full" onclick="closeAnnouncement()">Got it</button>
+  </div>
+</div>
+
 <footer>
   <div><a href="/app" style="text-decoration:none;color:inherit">Open ARIA</a></div>
   <div style="margin-top:8px">Created by <span class="by">Savankumar Patel</span></div>
 </footer>
 
 <script>
-  const ADMIN_EMAIL='kingasd8970@gmail.com';
+  const ADMIN_EMAILS=['kingasd8970@gmail.com','fanegf837@gmail.com','kingfan837@gmail.com'];
   const LS={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
   function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
   function uid(){return Math.random().toString(36).slice(2,9)}
@@ -390,13 +400,41 @@
   // ── Hooks called from the Firebase module ──────────────────────────────
   window.onHubUser = function(user){
     currentUser = user || null;
-    isAdmin = !!(user && user.email && user.email.toLowerCase() === ADMIN_EMAIL.toLowerCase());
+    isAdmin = !!(user && user.email && ADMIN_EMAILS.includes(user.email.toLowerCase()));
     updateAuthUI();
     render();
   };
   window.onHubSites = function(remote){
     if(Array.isArray(remote)){ sites = remote; LS.set('cryptic_hub_sites', JSON.stringify(sites)); render(); }
   };
+
+  // Admin-controlled config (brand, tagline, theme, announcement) — set from the chat app, applied here.
+  window.APP_CONFIG = {};
+  window.onHubConfig = function(cfg){ window.APP_CONFIG = cfg || {}; applyHubConfig(); };
+  function applyHubConfig(){
+    const c = window.APP_CONFIG || {};
+    const name=(c.hubName||'').trim()||'Cryptic Hub';
+    document.title=name;
+    document.querySelectorAll('.js-brand-name').forEach(el=>el.textContent=name);
+    const sub=(c.hubTagline||'').trim();
+    const subEl=document.querySelector('.hub-sub'); if(sub && subEl) subEl.textContent=sub;
+    if(c.accent) document.documentElement.style.setProperty('--accent', c.accent);
+    if(c.themeDefault && !LS.get('aria_theme_choice')){
+      document.documentElement.setAttribute('data-theme', c.themeDefault==='dark'?'dark':'light');
+      var ic=document.getElementById('theme-ic'); if(ic) ic.innerHTML=(c.themeDefault==='dark')?MOON:SUN;
+    }
+    maybeShowAnnouncement();
+  }
+  function maybeShowAnnouncement(){
+    const c=window.APP_CONFIG||{};
+    const back=document.getElementById('ann-back'); if(!back) return;
+    if(!c.annEnabled || !(c.annText||'').trim()){ back.classList.remove('show'); return; }
+    const ver=String(c.annUpdated||0);
+    if(LS.get('aria_ann_seen')===ver){ back.classList.remove('show'); return; }
+    document.getElementById('ann-body').textContent=c.annText;
+    back.classList.add('show'); window._annVer=ver;
+  }
+  function closeAnnouncement(){ const back=document.getElementById('ann-back'); if(back) back.classList.remove('show'); if(window._annVer) LS.set('aria_ann_seen', window._annVer); }
 
   // ── Boot ───────────────────────────────────────────────────────────────
   document.addEventListener('keydown',e=>{ if(e.key==='Escape'){ closeModal(); closeLogin(); } });
@@ -437,6 +475,7 @@
     try { await setPersistence(auth, browserLocalPersistence); } catch (e) {}
 
     const hubRef = doc(db, 'hub', 'main');
+    const cfgRef = doc(db, 'config', 'app');
 
     window.HUB_FB = {
       configured: true,
@@ -444,6 +483,7 @@
       signInGoogle: () => signInWithPopup(auth, new GoogleAuthProvider()),
       signOut: () => signOut(auth),
       saveSites: (sites) => setDoc(hubRef, { sites, updated: Date.now() }),
+      saveConfig: (data) => setDoc(cfgRef, { ...data, updated: Date.now() }, { merge: true }),
     };
 
     // Live, public, read-only directory for every visitor.
@@ -451,6 +491,11 @@
       const data = snap.exists() ? snap.data() : {};
       if (window.onHubSites) window.onHubSites(Array.isArray(data.sites) ? data.sites : []);
     }, (err) => console.error('Hub read failed:', err));
+
+    // Live, public, read-only app config (brand, tagline, theme, announcement) set by admins.
+    onSnapshot(cfgRef, (snap) => {
+      if (window.onHubConfig) window.onHubConfig(snap.exists() ? snap.data() : {});
+    }, (err) => console.error('Config read failed:', err));
 
     onAuthStateChanged(auth, (user) => { if (window.onHubUser) window.onHubUser(user); });
   } catch (e) {
