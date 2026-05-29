@@ -74,7 +74,12 @@
     .sb-icon-btn { width: 30px; height: 30px; background: none; border: 1px solid transparent; border-radius: 8px; color: var(--text-3); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; flex-shrink: 0; }
     .sb-icon-btn:hover { background: var(--bg-card); border-color: var(--border); color: var(--text-1); }
     .sb-icon-btn.active { background: var(--accent-soft); border-color: rgba(204,122,58,0.22); color: var(--accent); }
-    .menu-btn, .sb-close { display: none; }
+    .menu-btn { display: none; }
+    /* Desktop: let anyone collapse the sidebar; a menu button brings it back. */
+    @media(min-width:761px){
+      #app.collapsed #sidebar { display: none; }
+      #app.collapsed .menu-btn { display: flex; }
+    }
 
     .sb-new { margin: 12px 12px 6px; display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: var(--bg-input); border: 1px solid var(--border-md); border-radius: var(--r); font-family: var(--font-sans); font-size: 13px; font-weight: 500; color: var(--text-2); cursor: pointer; transition: all 0.15s; box-shadow: var(--shadow-sm); }
     .sb-new:hover { background: var(--bg); color: var(--text-1); box-shadow: var(--shadow-md); }
@@ -413,7 +418,7 @@
         <button class="sb-icon-btn" id="theme-btn" onclick="toggleTheme()" title="Toggle theme">
           <svg id="theme-svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
         </button>
-        <button class="sb-icon-btn sb-close" onclick="closeSidebar()" title="Close menu" aria-label="Close menu">
+        <button class="sb-icon-btn sb-close" onclick="closeSidebar()" title="Hide sidebar" aria-label="Hide sidebar">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
         </button>
       </div>
@@ -560,7 +565,7 @@
   <!-- MAIN -->
   <main id="main">
     <div id="topbar">
-      <button class="sb-icon-btn menu-btn" onclick="openSidebar()" title="Menu" aria-label="Open menu">
+      <button class="sb-icon-btn menu-btn" onclick="openSidebar()" title="Show sidebar" aria-label="Show sidebar">
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
       </button>
       <span class="tb-title" id="tb-title">New conversation</span>
@@ -1130,6 +1135,7 @@ function buildWelcome(){
   document.getElementById('pill-think').classList.toggle('on',feats.think);
 
   applyTheme(LS.get('aria_theme')||'dark');
+  if(LS.get('aria_sb_hidden')==='1') document.getElementById('app').classList.add('collapsed');
   renderMemory();
   renderSidebar();
   const _msgsEl=document.getElementById('messages');
@@ -1244,8 +1250,15 @@ function toggleSettings(){ settOpen?closeSettings():openSettings(); }
 function openSettings(){ settOpen=true; document.getElementById('settings-panel').classList.add('open'); document.getElementById('backdrop').classList.add('open'); }
 function closeSettings(){ settOpen=false; document.getElementById('settings-panel').classList.remove('open'); document.getElementById('backdrop').classList.remove('open'); }
 function closeAllPanels(){ closeSettings(); const sb=document.getElementById('sidebar'); if(sb) sb.classList.remove('open'); document.getElementById('backdrop').classList.remove('open'); }
-function openSidebar(){ document.getElementById('sidebar').classList.add('open'); document.getElementById('backdrop').classList.add('open'); }
-function closeSidebar(){ document.getElementById('sidebar').classList.remove('open'); if(!settOpen) document.getElementById('backdrop').classList.remove('open'); }
+function isMobileView(){ return window.innerWidth<=760; }
+function openSidebar(){
+  if(isMobileView()){ document.getElementById('sidebar').classList.add('open'); document.getElementById('backdrop').classList.add('open'); }
+  else { document.getElementById('app').classList.remove('collapsed'); LS.set('aria_sb_hidden',''); }
+}
+function closeSidebar(){
+  if(isMobileView()){ document.getElementById('sidebar').classList.remove('open'); if(!settOpen) document.getElementById('backdrop').classList.remove('open'); }
+  else { document.getElementById('app').classList.add('collapsed'); LS.set('aria_sb_hidden','1'); }
+}
 
 function toggleKey(inputId,svgId){
   const inp=document.getElementById(inputId); const show=inp.type==='password'; inp.type=show?'text':'password';
