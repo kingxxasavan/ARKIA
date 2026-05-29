@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Cryptic Hub</title>
-<meta name="description" content="Cryptic Hub — your private launchpad of websites and access links." />
+<meta name="description" content="Cryptic Hub — a curated home for the websites and tools we trust, paired with ARIA, our personal AI assistant." />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&family=DM+Serif+Display&display=swap" rel="stylesheet" />
 <style>
@@ -31,18 +31,25 @@
   html,body{margin:0;padding:0}
   body{font-family:var(--sans);color:var(--text-1);background:var(--bg);-webkit-font-smoothing:antialiased;line-height:1.6;transition:background-color .25s ease,color .25s ease;min-height:100vh;position:relative}
   a{color:inherit}
+
   /* faint "cryptic" grid backdrop */
   .fx-grid{position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.5;
     background-image:linear-gradient(var(--border) 1px,transparent 1px),linear-gradient(90deg,var(--border) 1px,transparent 1px);
     background-size:44px 44px;
     -webkit-mask-image:radial-gradient(circle at 50% 30%,#000,transparent 80%);
             mask-image:radial-gradient(circle at 50% 30%,#000,transparent 80%);}
+  /* slow drifting glow behind the hero */
+  .fx-glow{position:fixed;top:-200px;left:50%;width:680px;height:680px;transform:translateX(-50%);z-index:0;pointer-events:none;
+    background:radial-gradient(circle,var(--accent-soft),transparent 65%);filter:blur(20px);opacity:.9;animation:drift 16s ease-in-out infinite alternate}
+  @keyframes drift{from{transform:translateX(-54%) translateY(0)}to{transform:translateX(-46%) translateY(40px)}}
+
   .wrap{max-width:1100px;margin:0 auto;padding:0 22px;position:relative;z-index:1}
 
   /* Nav */
   nav{display:flex;align-items:center;justify-content:space-between;padding:20px 0}
   .brand{display:flex;align-items:center;gap:10px;text-decoration:none}
-  .mark{width:34px;height:34px;border-radius:9px;background:var(--text-1);color:var(--bg);font-family:var(--serif);font-size:18px;display:flex;align-items:center;justify-content:center}
+  .mark{width:34px;height:34px;border-radius:9px;background:var(--text-1);color:var(--bg);font-family:var(--serif);font-size:18px;display:flex;align-items:center;justify-content:center;transition:transform .3s ease}
+  .brand:hover .mark{transform:rotate(45deg)}
   .brand-name{font-family:var(--serif);font-size:21px;letter-spacing:-0.01em}
   .nav-links{display:flex;align-items:center;gap:10px}
   .btn{display:inline-flex;align-items:center;gap:8px;padding:10px 18px;border-radius:11px;font-family:var(--sans);font-size:14px;font-weight:600;text-decoration:none;cursor:pointer;border:1px solid var(--border-md);background:var(--bg-card);color:var(--text-1);transition:all .15s}
@@ -52,21 +59,35 @@
   .btn.sm{padding:7px 12px;font-size:13px;border-radius:9px}
   .theme-btn{width:38px;height:38px;border-radius:10px;border:1px solid var(--border-md);background:var(--bg-card);color:var(--text-1);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:all .15s}
   .theme-btn:hover{border-color:var(--accent);color:var(--accent)}
+  .admin-chip{display:none;align-items:center;gap:7px;font-family:var(--mono);font-size:11px;letter-spacing:.04em;color:var(--accent);background:var(--accent-soft);border:1px solid var(--accent-soft);padding:6px 11px;border-radius:20px}
+  .admin-chip .dot{width:7px;height:7px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 0 var(--accent);animation:pulse 2s infinite}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 var(--accent-soft)}70%{box-shadow:0 0 0 7px transparent}100%{box-shadow:0 0 0 0 transparent}}
 
-  /* Header */
-  .hub-head{padding:36px 0 22px}
+  /* Hero / header */
+  .hub-head{padding:46px 0 26px}
   .eyebrow{display:inline-block;font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:0.18em;text-transform:uppercase;color:var(--accent);background:var(--accent-soft);border:1px solid var(--accent-soft);padding:5px 11px;border-radius:20px;margin-bottom:16px}
-  h1{font-family:var(--serif);font-size:clamp(34px,5.4vw,52px);line-height:1.05;letter-spacing:-0.02em;margin:0 0 12px}
+  h1{font-family:var(--serif);font-size:clamp(34px,5.4vw,54px);line-height:1.05;letter-spacing:-0.02em;margin:0 0 14px}
   h1 .accent{color:var(--accent)}
-  .hub-sub{font-size:16px;color:var(--text-2);max-width:40em;margin:0 0 22px}
-  .toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
-  .search{flex:1;min-width:200px;max-width:420px;padding:11px 14px;border-radius:11px;border:1px solid var(--border-md);background:var(--bg-card);color:var(--text-1);font-family:var(--sans);font-size:14px;outline:none;transition:border-color .15s}
+  .hub-sub{font-size:16.5px;color:var(--text-2);max-width:42em;margin:0 0 22px}
+
+  /* About / what we do */
+  .about{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin:6px 0 38px}
+  .about-card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r);padding:20px;transition:border-color .2s,box-shadow .2s,transform .2s}
+  .about-card:hover{border-color:var(--border-md);box-shadow:var(--shadow);transform:translateY(-2px)}
+  .about-ic{width:38px;height:38px;border-radius:10px;background:var(--accent-soft);color:var(--accent);display:flex;align-items:center;justify-content:center;margin-bottom:12px}
+  .about-card h3{font-family:var(--serif);font-size:18px;margin:0 0 6px;font-weight:400}
+  .about-card p{font-size:13.5px;color:var(--text-2);margin:0}
+
+  .section-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin:6px 0 14px;flex-wrap:wrap}
+  .section-head h2{font-family:var(--serif);font-size:24px;font-weight:400;margin:0}
+  .toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;flex:1;justify-content:flex-end}
+  .search{flex:1;min-width:180px;max-width:340px;padding:11px 14px;border-radius:11px;border:1px solid var(--border-md);background:var(--bg-card);color:var(--text-1);font-family:var(--sans);font-size:14px;outline:none;transition:border-color .15s}
   .search:focus{border-color:var(--accent)}
-  .count{font-family:var(--mono);font-size:12px;color:var(--text-3);margin-left:auto}
+  .count{font-family:var(--mono);font-size:12px;color:var(--text-3)}
 
   /* Grid of sites */
   .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px;padding:8px 0 10px}
-  .site{position:relative;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r);padding:18px;display:flex;flex-direction:column;gap:12px;transition:border-color .15s,box-shadow .15s,transform .15s}
+  .site{position:relative;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r);padding:18px;display:flex;flex-direction:column;gap:12px;transition:border-color .15s,box-shadow .15s,transform .15s;animation:rise .5s cubic-bezier(.2,.7,.3,1) both}
   .site:hover{border-color:var(--border-md);box-shadow:var(--shadow);transform:translateY(-2px)}
   .site-top{display:flex;align-items:center;gap:12px}
   .site-av{width:40px;height:40px;border-radius:11px;flex-shrink:0;background:var(--accent);color:#fff;font-family:var(--serif);font-size:19px;display:flex;align-items:center;justify-content:center}
@@ -79,27 +100,44 @@
   .icon-btn{width:32px;height:32px;flex-shrink:0;border-radius:9px;border:1px solid var(--border-md);background:var(--bg);color:var(--text-3);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;font-size:14px;transition:all .15s}
   .icon-btn:hover{border-color:var(--accent);color:var(--accent)}
   .icon-btn.danger:hover{border-color:var(--danger);color:var(--danger);background:rgba(184,48,48,0.06)}
+  @keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
 
-  /* Add tile */
-  .add-tile{background:transparent;border:1.5px dashed var(--border-md);border-radius:var(--r);padding:18px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;min-height:150px;color:var(--text-3);cursor:pointer;font-family:var(--sans);font-size:14px;font-weight:500;transition:all .15s}
+  /* Add tile (admin only) */
+  .add-tile{background:transparent;border:1.5px dashed var(--border-md);border-radius:var(--r);padding:18px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;min-height:150px;color:var(--text-3);cursor:pointer;font-family:var(--sans);font-size:14px;font-weight:500;transition:all .15s;animation:rise .5s both}
   .add-tile:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
   .add-tile .plus{font-size:26px;line-height:1}
 
   .empty{text-align:center;color:var(--text-2);padding:40px 0 10px}
   .empty .big{font-family:var(--serif);font-size:22px;color:var(--text-1);margin-bottom:6px}
 
-  /* Modal */
+  /* Modals */
   .modal-back{position:fixed;inset:0;z-index:100;background:rgba(0,0,0,0.45);display:none;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(3px)}
-  .modal{width:100%;max-width:440px;background:var(--bg);border:1px solid var(--border-md);border-radius:18px;box-shadow:var(--shadow);padding:24px}
-  .modal-title{font-family:var(--serif);font-size:21px;margin-bottom:16px}
+  .modal-back.show{display:flex;animation:fade .2s ease}
+  @keyframes fade{from{opacity:0}to{opacity:1}}
+  .modal{width:100%;max-width:440px;background:var(--bg);border:1px solid var(--border-md);border-radius:18px;box-shadow:var(--shadow);padding:24px;animation:pop .25s cubic-bezier(.2,.8,.3,1)}
+  @keyframes pop{from{opacity:0;transform:translateY(10px) scale(.98)}to{opacity:1;transform:translateY(0) scale(1)}}
+  .modal-title{font-family:var(--serif);font-size:21px;margin-bottom:6px}
+  .modal-note{font-size:13px;color:var(--text-3);margin-bottom:16px}
   .field{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
   .field label{font-family:var(--mono);font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-3)}
   .field input,.field textarea{width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--border-md);background:var(--bg-card);color:var(--text-1);font-family:var(--sans);font-size:14px;outline:none;transition:border-color .15s;resize:vertical}
   .field input:focus,.field textarea:focus{border-color:var(--accent)}
   .modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:6px}
+  .modal-or{display:flex;align-items:center;gap:10px;color:var(--text-3);font-size:11px;text-transform:uppercase;letter-spacing:.08em;margin:14px 0}
+  .modal-or::before,.modal-or::after{content:'';flex:1;height:1px;background:var(--border-md)}
+  .modal-err{font-size:12px;color:var(--danger);min-height:14px;margin-bottom:4px}
+  .full{width:100%;justify-content:center}
 
   footer{border-top:1px solid var(--border);margin-top:40px;padding:24px 0 40px;text-align:center;color:var(--text-3);font-size:13px;position:relative;z-index:1}
   footer .by{color:var(--text-1);font-weight:600}
+
+  /* scroll reveal */
+  .reveal{opacity:0;transform:translateY(18px);transition:opacity .6s ease,transform .6s cubic-bezier(.2,.7,.3,1)}
+  .reveal.in{opacity:1;transform:none}
+  @media (prefers-reduced-motion:reduce){
+    .reveal{opacity:1;transform:none;transition:none}
+    .fx-glow,.site,.add-tile{animation:none}
+  }
 
   @media (max-width:520px){ .grid{grid-template-columns:1fr} }
 </style>
@@ -118,12 +156,15 @@
 </head>
 <body>
 <div class="fx-grid"></div>
+<div class="fx-glow"></div>
 
 <div class="wrap">
   <nav>
     <a class="brand" href="/"><div class="mark">◆</div><div class="brand-name">Cryptic Hub</div></a>
     <div class="nav-links">
+      <span class="admin-chip" id="admin-chip"><span class="dot"></span>Admin</span>
       <a class="btn ghost" href="/app">Open ARIA</a>
+      <button class="btn ghost sm" id="auth-btn" onclick="onAuthBtn()">Sign in</button>
       <button class="theme-btn" onclick="toggleTheme()" title="Toggle dark / light" aria-label="Toggle theme">
         <svg id="theme-ic" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></svg>
       </button>
@@ -131,21 +172,50 @@
   </nav>
 
   <header class="hub-head">
-    <span class="eyebrow">// launchpad</span>
+    <span class="eyebrow">Curated hub · powered by ARIA</span>
     <h1>Cryptic <span class="accent">Hub</span></h1>
-    <p class="hub-sub">Your private launchpad — every site you use and what it's for, one click away. Stored right here in your browser.</p>
+    <p class="hub-sub">A calm, curated home for the websites and tools we trust — every link with a note on what it's for, one click away. Paired with <strong>ARIA</strong>, our personal AI assistant.</p>
+  </header>
+
+  <!-- Who we are / what we do -->
+  <section class="about">
+    <div class="about-card reveal">
+      <div class="about-ic">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>
+      </div>
+      <h3>Who we are</h3>
+      <p>A small, independent project by Savankumar Patel — building quiet, useful tools without the clutter.</p>
+    </div>
+    <div class="about-card reveal">
+      <div class="about-ic">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M3 9h18M8 18v2M16 18v2"/></svg>
+      </div>
+      <h3>What we do</h3>
+      <p>We curate a hand-picked directory of trusted sites and pair it with ARIA, an AI assistant with memory that follows you across devices.</p>
+    </div>
+    <div class="about-card reveal">
+      <div class="about-ic">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l2.4 6.6L21 9l-5 4 1.6 7L12 16.8 6.4 20 8 13 3 9l6.6-.4z"/></svg>
+      </div>
+      <h3>Why it's curated</h3>
+      <p>Only one verified admin can add or edit links, so the list stays trustworthy, signal-only, and free of noise.</p>
+    </div>
+  </section>
+
+  <div class="section-head reveal">
+    <h2>The directory</h2>
     <div class="toolbar">
       <input id="search" class="search" placeholder="Search sites…" oninput="render()" autocomplete="off" />
-      <button class="btn primary" onclick="openAdd()">+ Add site</button>
+      <button class="btn primary" id="add-btn" onclick="openAdd()" style="display:none">+ Add site</button>
       <span class="count" id="count"></span>
     </div>
-  </header>
+  </div>
 
   <section id="grid" class="grid"></section>
 
   <div id="empty" class="empty" style="display:none">
     <div class="big">Nothing here yet.</div>
-    <div>Add your first website — a name, its link, and what it does.</div>
+    <div id="empty-sub">The curator hasn't added any sites yet — check back soon.</div>
   </div>
 </div>
 
@@ -167,8 +237,28 @@
     </div>
     <div class="modal-actions">
       <button class="btn" onclick="closeModal()">Cancel</button>
-      <button class="btn primary" onclick="saveSite()">Save</button>
+      <button class="btn primary" id="save-btn" onclick="saveSite()">Save</button>
     </div>
+  </div>
+</div>
+
+<!-- Admin sign-in modal -->
+<div id="login-back" class="modal-back" onclick="if(event.target===this)closeLogin()">
+  <div class="modal">
+    <div class="modal-title">Admin sign-in</div>
+    <div class="modal-note">Only the verified admin account can manage the directory.</div>
+    <div class="field">
+      <label>Email</label>
+      <input id="l-email" type="email" placeholder="you@example.com" autocomplete="email" onkeydown="if(event.key==='Enter')document.getElementById('l-pass').focus()" />
+    </div>
+    <div class="field">
+      <label>Password</label>
+      <input id="l-pass" type="password" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')loginSubmit()" />
+    </div>
+    <div class="modal-err" id="l-err"></div>
+    <button class="btn primary full" id="l-submit" onclick="loginSubmit()">Sign in</button>
+    <div class="modal-or">or</div>
+    <button class="btn full" onclick="loginGoogle()">Continue with Google</button>
   </div>
 </div>
 
@@ -178,28 +268,47 @@
 </footer>
 
 <script>
+  const ADMIN_EMAIL='kingasd8970@gmail.com';
   const LS={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
   function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
   function uid(){return Math.random().toString(36).slice(2,9)}
-  function loadSites(){try{return JSON.parse(LS.get('cryptic_hub_sites')||'[]')}catch(e){return []}}
-  function saveSites(a){LS.set('cryptic_hub_sites',JSON.stringify(a));render()}
   function normalizeUrl(u){u=(u||'').trim();if(!u)return'';if(!/^https?:\/\//i.test(u))u='https://'+u;return u}
   function hostOf(u){try{return new URL(normalizeUrl(u)).host.replace(/^www\./,'')}catch(e){return u||''}}
 
-  let editingId=null;
+  // ── State ──────────────────────────────────────────────────────────────
+  let sites = (function(){ try{ return JSON.parse(LS.get('cryptic_hub_sites')||'[]') }catch(e){ return [] } })();
+  let isAdmin = false;
+  let currentUser = null;
+  let editingId = null;
 
+  // Save: write to Firestore when admin; always cache locally for instant/offline render.
+  function persist(){
+    LS.set('cryptic_hub_sites', JSON.stringify(sites));
+    if(isAdmin && window.HUB_FB && window.HUB_FB.configured){
+      window.HUB_FB.saveSites(sites).catch(e=>{ console.error(e); alert('Could not save to the cloud: '+(e&&e.message||e)); });
+    }
+  }
+
+  // ── Render ─────────────────────────────────────────────────────────────
   function render(){
     const grid=document.getElementById('grid');
-    const sites=loadSites();
     const q=(document.getElementById('search').value||'').toLowerCase().trim();
     const filtered=sites.filter(s=>!q || ((s.name||'')+' '+(s.desc||'')+' '+(s.url||'')).toLowerCase().includes(q));
     document.getElementById('count').textContent = sites.length ? (sites.length+' site'+(sites.length>1?'s':'')) : '';
     document.getElementById('empty').style.display = sites.length ? 'none' : 'block';
+    document.getElementById('empty-sub').textContent = isAdmin
+      ? 'Add your first website — a name, its link, and what it does.'
+      : "The curator hasn't added any sites yet — check back soon.";
     grid.innerHTML='';
-    filtered.forEach(s=>{
+    filtered.forEach((s,i)=>{
       const url=normalizeUrl(s.url);
       const letter=(((s.name||'?').trim()[0])||'?').toUpperCase();
-      const card=document.createElement('div'); card.className='site';
+      const card=document.createElement('div'); card.className='site'; card.style.animationDelay=(Math.min(i,12)*0.04)+'s';
+      let actions='<a class="btn primary sm" href="'+esc(url)+'" target="_blank" rel="noopener">Open &#8599;</a>';
+      if(isAdmin){
+        actions+='<button class="icon-btn" title="Edit" onclick="openEdit(\''+s.id+'\')">&#9998;</button>'+
+                 '<button class="icon-btn danger" title="Remove" onclick="removeSite(\''+s.id+'\')">&#10005;</button>';
+      }
       card.innerHTML=
         '<div class="site-top">'+
           '<div class="site-av">'+esc(letter)+'</div>'+
@@ -209,40 +318,145 @@
           '</div>'+
         '</div>'+
         '<div class="site-desc">'+esc(s.desc||'')+'</div>'+
-        '<div class="site-actions">'+
-          '<a class="btn primary sm" href="'+esc(url)+'" target="_blank" rel="noopener">Open &#8599;</a>'+
-          '<button class="icon-btn" title="Edit" onclick="openEdit(\''+s.id+'\')">&#9998;</button>'+
-          '<button class="icon-btn danger" title="Remove" onclick="removeSite(\''+s.id+'\')">&#10005;</button>'+
-        '</div>';
+        '<div class="site-actions">'+actions+'</div>';
       grid.appendChild(card);
     });
-    // "Add site" tile always trails the grid
-    const add=document.createElement('div'); add.className='add-tile'; add.onclick=openAdd;
-    add.innerHTML='<div class="plus">+</div><div>Add site</div>';
-    grid.appendChild(add);
+    if(isAdmin){
+      const add=document.createElement('div'); add.className='add-tile'; add.onclick=openAdd;
+      add.style.animationDelay=(Math.min(filtered.length,12)*0.04)+'s';
+      add.innerHTML='<div class="plus">+</div><div>Add site</div>';
+      grid.appendChild(add);
+    }
   }
 
-  function showModal(){ document.getElementById('modal-back').style.display='flex'; setTimeout(()=>document.getElementById('f-name').focus(),50); }
-  function closeModal(){ document.getElementById('modal-back').style.display='none'; }
+  // ── Add / edit ─────────────────────────────────────────────────────────
+  function showModal(){ document.getElementById('modal-back').classList.add('show'); setTimeout(()=>document.getElementById('f-name').focus(),50); }
+  function closeModal(){ document.getElementById('modal-back').classList.remove('show'); }
   function setFields(n,u,d){ document.getElementById('f-name').value=n||''; document.getElementById('f-url').value=u||''; document.getElementById('f-desc').value=d||''; }
-  function openAdd(){ editingId=null; document.getElementById('modal-title').textContent='Add a site'; setFields('','',''); showModal(); }
-  function openEdit(id){ const s=loadSites().find(x=>x.id===id); if(!s)return; editingId=id; document.getElementById('modal-title').textContent='Edit site'; setFields(s.name,s.url,s.desc); showModal(); }
+  function openAdd(){ if(!isAdmin)return; editingId=null; document.getElementById('modal-title').textContent='Add a site'; setFields('','',''); showModal(); }
+  function openEdit(id){ if(!isAdmin)return; const s=sites.find(x=>x.id===id); if(!s)return; editingId=id; document.getElementById('modal-title').textContent='Edit site'; setFields(s.name,s.url,s.desc); showModal(); }
   function saveSite(){
+    if(!isAdmin)return;
     const name=document.getElementById('f-name').value.trim();
     const url=document.getElementById('f-url').value.trim();
     const desc=document.getElementById('f-desc').value.trim();
     if(!name){ document.getElementById('f-name').focus(); return; }
     if(!url){ document.getElementById('f-url').focus(); return; }
-    const sites=loadSites();
     if(editingId){ const s=sites.find(x=>x.id===editingId); if(s){ s.name=name; s.url=url; s.desc=desc; } }
     else { sites.push({id:uid(),name,url,desc}); }
-    saveSites(sites); closeModal();
+    persist(); render(); closeModal();
   }
-  function removeSite(id){ if(confirm('Remove this site from your hub?')) saveSites(loadSites().filter(s=>s.id!==id)); }
+  function removeSite(id){ if(!isAdmin)return; if(confirm('Remove this site from the hub?')){ sites=sites.filter(s=>s.id!==id); persist(); render(); } }
 
-  document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeModal(); });
+  // ── Auth UI ────────────────────────────────────────────────────────────
+  function onAuthBtn(){ if(currentUser){ if(window.HUB_FB&&window.HUB_FB.configured) window.HUB_FB.signOut().catch(()=>{}); } else { openLogin(); } }
+  function openLogin(){ document.getElementById('l-err').textContent=''; document.getElementById('login-back').classList.add('show'); setTimeout(()=>document.getElementById('l-email').focus(),50); }
+  function closeLogin(){ document.getElementById('login-back').classList.remove('show'); }
+  function loginSubmit(){
+    const email=document.getElementById('l-email').value.trim();
+    const pass=document.getElementById('l-pass').value;
+    const err=document.getElementById('l-err'); err.textContent='';
+    if(!email||!pass){ err.textContent='Enter your email and password.'; return; }
+    if(!(window.HUB_FB&&window.HUB_FB.configured)){ err.textContent='Sign-in is unavailable right now.'; return; }
+    const b=document.getElementById('l-submit'); b.disabled=true; b.textContent='Signing in…';
+    window.HUB_FB.signInEmail(email,pass).then(()=>closeLogin()).catch(e=>{ err.textContent=friendlyErr(e); }).finally(()=>{ b.disabled=false; b.textContent='Sign in'; });
+  }
+  function loginGoogle(){
+    const err=document.getElementById('l-err'); err.textContent='';
+    if(!(window.HUB_FB&&window.HUB_FB.configured)){ err.textContent='Sign-in is unavailable right now.'; return; }
+    window.HUB_FB.signInGoogle().then(()=>closeLogin()).catch(e=>{ err.textContent=friendlyErr(e); });
+  }
+  function friendlyErr(e){
+    const c=(e&&e.code)||'';
+    if(c.includes('invalid-cred')||c.includes('wrong-password')||c.includes('user-not-found')) return 'Wrong email or password.';
+    if(c.includes('too-many')) return 'Too many attempts. Try again later.';
+    return (e&&e.message)||'Could not sign in.';
+  }
+  function updateAuthUI(){
+    const btn=document.getElementById('auth-btn');
+    const chip=document.getElementById('admin-chip');
+    const addBtn=document.getElementById('add-btn');
+    if(currentUser){
+      btn.textContent='Sign out';
+      chip.style.display = isAdmin ? 'inline-flex' : 'none';
+      addBtn.style.display = isAdmin ? 'inline-flex' : 'none';
+    } else {
+      btn.textContent='Sign in';
+      chip.style.display='none';
+      addBtn.style.display='none';
+    }
+  }
+
+  // ── Hooks called from the Firebase module ──────────────────────────────
+  window.onHubUser = function(user){
+    currentUser = user || null;
+    isAdmin = !!(user && user.email && user.email.toLowerCase() === ADMIN_EMAIL.toLowerCase());
+    updateAuthUI();
+    render();
+  };
+  window.onHubSites = function(remote){
+    if(Array.isArray(remote)){ sites = remote; LS.set('cryptic_hub_sites', JSON.stringify(sites)); render(); }
+  };
+
+  // ── Boot ───────────────────────────────────────────────────────────────
+  document.addEventListener('keydown',e=>{ if(e.key==='Escape'){ closeModal(); closeLogin(); } });
   (function(){ var ic=document.getElementById('theme-ic'); if(ic) ic.innerHTML=(document.documentElement.getAttribute('data-theme')==='dark')?MOON:SUN; })();
+  // scroll-reveal
+  (function(){
+    const els=document.querySelectorAll('.reveal');
+    if(!('IntersectionObserver' in window)){ els.forEach(el=>el.classList.add('in')); return; }
+    const io=new IntersectionObserver((ents)=>{ ents.forEach(en=>{ if(en.isIntersecting){ en.target.classList.add('in'); io.unobserve(en.target); } }); },{threshold:.12});
+    els.forEach(el=>io.observe(el));
+  })();
   render();
+</script>
+
+<!-- Firebase: shared directory + admin auth (project "arikia") -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+  import { getAuth, onAuthStateChanged, signInWithEmailAndPassword,
+           signOut, GoogleAuthProvider, signInWithPopup, setPersistence, browserLocalPersistence }
+           from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
+  import { getFirestore, doc, getDoc, setDoc, onSnapshot }
+           from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyC3e8T0nsoyey0EA9ozQbt9o5THI4pGzng",
+    authDomain: "arikia.firebaseapp.com",
+    projectId: "arikia",
+    storageBucket: "arikia.firebasestorage.app",
+    messagingSenderId: "472996212961",
+    appId: "1:472996212961:web:d6a53311c8d281f97507a0",
+    measurementId: "G-03BY83C2TV"
+  };
+
+  try {
+    const fbApp = initializeApp(firebaseConfig);
+    const auth = getAuth(fbApp);
+    const db = getFirestore(fbApp);
+    try { await setPersistence(auth, browserLocalPersistence); } catch (e) {}
+
+    const hubRef = doc(db, 'hub', 'main');
+
+    window.HUB_FB = {
+      configured: true,
+      signInEmail: (e, p) => signInWithEmailAndPassword(auth, e, p),
+      signInGoogle: () => signInWithPopup(auth, new GoogleAuthProvider()),
+      signOut: () => signOut(auth),
+      saveSites: (sites) => setDoc(hubRef, { sites, updated: Date.now() }),
+    };
+
+    // Live, public, read-only directory for every visitor.
+    onSnapshot(hubRef, (snap) => {
+      const data = snap.exists() ? snap.data() : {};
+      if (window.onHubSites) window.onHubSites(Array.isArray(data.sites) ? data.sites : []);
+    }, (err) => console.error('Hub read failed:', err));
+
+    onAuthStateChanged(auth, (user) => { if (window.onHubUser) window.onHubUser(user); });
+  } catch (e) {
+    console.error('Firebase init failed:', e);
+    window.HUB_FB = { configured: false };
+  }
 </script>
 </body>
 </html>

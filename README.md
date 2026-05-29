@@ -29,6 +29,12 @@ In the [Firebase console](https://console.firebase.google.com) for project **ari
        match /chats/{uid} {
          allow read, write: if request.auth != null && request.auth.uid == uid;
        }
+       // Curated homepage directory: anyone can read, only the admin can write.
+       match /hub/{docId} {
+         allow read: if true;
+         allow write: if request.auth != null
+                      && request.auth.token.email == 'kingasd8970@gmail.com';
+       }
      }
    }
    ```
@@ -75,5 +81,6 @@ otherwise you enter them in Settings.
 
 ## Notes
 - The **landing page** is `index.html` (served at `/`); the **chat app** is `app.html` (served at `/app`). Root copies mirror the `public/` versions, which is what gets served.
+- The landing page is a **curated directory**: the website list lives in Firestore at `hub/main` and is **public to read** but **only the admin can edit it**. The admin is the account whose email is `kingasd8970@gmail.com` — sign in via the **Sign in** button on the homepage to reveal the add/edit/remove controls. Everyone else sees a read-only directory. (To change the admin, update `ADMIN_EMAIL` in `index.html` / `public/index.html` and the email in the `hub` Firestore rule.)
 - Per-user data is stored as `memories/{uid}` and `chats/{uid}` in Firestore; local storage is the offline cache.
 - DRM streaming and a full in-app web browser are intentionally **not** included — this app is focused on AI.
