@@ -19,7 +19,7 @@ app.get('/app', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'app.
 const PROVIDERS = {
   anthropic:  { base: 'https://api.anthropic.com',  keyEnv: 'ANTHROPIC_KEY',  auth: 'anthropic' },
   openai:     { base: 'https://api.openai.com',     keyEnv: 'OPENAI_KEY',     auth: 'bearer'    },
-  ollama:     { base: 'https://api.ollama.com',         keyEnv: 'OLLAMA_KEY',     auth: 'bearer'    },
+  ollama:     { base: 'https://ollama.com',         keyEnv: 'OLLAMA_KEY',     auth: 'bearer'    },
   openrouter: { base: 'https://openrouter.ai/api',  keyEnv: 'OPENROUTER_KEY', auth: 'bearer'    },
 };
 
