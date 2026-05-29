@@ -478,6 +478,11 @@
         <textarea id="adm-ann" class="key-input" rows="2" placeholder="A message shown to all users…"></textarea>
         <label style="display:flex;align-items:center;gap:8px;margin-top:6px;font-size:12px;color:var(--text-2);cursor:pointer"><input id="adm-ann-on" type="checkbox" /> Show this announcement to users</label>
 
+        <div class="sg-sublabel">System prompt (all users)</div>
+        <textarea id="adm-sys" class="key-input" rows="4" placeholder="Base instructions ARIA follows for everyone…"></textarea>
+        <label style="display:flex;align-items:center;gap:8px;margin-top:6px;font-size:12px;color:var(--text-2);cursor:pointer"><input id="adm-sys-lock" type="checkbox" /> Lock it — users can't edit or lower it</label>
+        <div class="sg-desc">When locked, this prompt is enforced for every user and their own System Prompt box becomes read-only. Edits take effect when you press <strong>Save changes</strong>.</div>
+
         <div class="sg-sublabel">Chat app name</div>
         <input id="adm-appname" class="key-input" type="text" placeholder="ARIA" autocomplete="off" />
 
@@ -538,6 +543,7 @@
       <!-- System prompt -->
       <div class="sg">
         <div class="sg-label">System Prompt</div>
+        <div id="sys-lock-note" style="display:none;background:var(--accent-soft);border:1px solid rgba(204,122,58,0.25);color:var(--accent);border-radius:10px;padding:8px 11px;font-size:12px;margin-bottom:8px">🔒 Locked by the admin — this prompt is enforced for everyone and can't be changed here.</div>
         <textarea id="sys-p" class="sp-textarea" placeholder="You are a helpful assistant…">You are ARIA, a personal AI assistant running on GLM-4.6 via Ollama. Be direct, accurate, and concise — match the length of your reply to the question and skip preamble, filler, and unsolicited follow-up suggestions. Reason carefully on hard problems but give only the useful conclusion unless asked to show your work. Use markdown — headings, bullets, tables, fenced code blocks — only when it genuinely improves clarity (code, comparisons, multi-step instructions). You have a long-term memory of the user and built-in calendar, reminder, and memory tools; use them naturally when relevant. You are a text model and cannot see images, but you can read documents the user attaches.</textarea>
       </div>
 
@@ -1168,8 +1174,20 @@ function applyAppConfig(){
   document.querySelectorAll('.js-model-badge').forEach(el=>{ el.textContent=model.toUpperCase(); });
   if(c.accent) document.documentElement.style.setProperty('--accent', c.accent);
   if(c.themeDefault && !LS.get('aria_theme_choice')) applyTheme(c.themeDefault==='dark'?'dark':'light');
+  applyLockedPrompt();
   fillAdminForm();
   maybeShowAnnouncement();
+}
+// Enforce the admin's locked system prompt for everyone (read-only when locked).
+function applyLockedPrompt(){
+  const c=window.APP_CONFIG||{};
+  const sys=document.getElementById('sys-p'); const note=document.getElementById('sys-lock-note');
+  const locked=!!c.sysLocked && !!(c.sysPrompt||'').trim();
+  if(sys){
+    if(locked){ sys.value=c.sysPrompt; sys.readOnly=true; sys.style.opacity='0.7'; sys.style.cursor='not-allowed'; }
+    else { sys.readOnly=false; sys.style.opacity=''; sys.style.cursor=''; }
+  }
+  if(note) note.style.display=locked?'block':'none';
 }
 function fillAdminForm(){
   const c=window.APP_CONFIG||{};
@@ -1181,7 +1199,9 @@ function fillAdminForm(){
   set('adm-ann', c.annText||'');
   set('adm-accent', c.accent||'#cc7a3a');
   set('adm-theme', c.themeDefault||'dark');
+  set('adm-sys', c.sysPrompt||'');
   const annE=document.getElementById('adm-ann-on'); if(annE) annE.checked=!!c.annEnabled;
+  const sysL=document.getElementById('adm-sys-lock'); if(sysL) sysL.checked=!!c.sysLocked;
 }
 function saveAdminConfig(){
   if(!(window.ARIA_FB&&window.ARIA_FB.configured)){ showToast('Not connected.'); return; }
@@ -1196,6 +1216,8 @@ function saveAdminConfig(){
     annEnabled:!!document.getElementById('adm-ann-on').checked,
     accent:g('adm-accent')||'#cc7a3a',
     themeDefault:g('adm-theme')||'dark',
+    sysPrompt:(g('adm-sys')||'').trim(),
+    sysLocked:!!document.getElementById('adm-sys-lock').checked,
   };
   // Bump the announcement version when the text changes or it's newly turned on, so users see it again.
   data.annUpdated = (data.annText!==(prev.annText||'') || (data.annEnabled && !prev.annEnabled)) ? Date.now() : (prev.annUpdated||0);
@@ -1534,12 +1556,18 @@ async function callOpenAICompat(model,body){
   if(!tools.length) return await streamOpenAI(target,model,messages,body);
 
   let usedTools=[];
+  // Allow plenty of tool rounds (e.g. searching several sites in turn). On the
+  // final round we drop the tools so the model is forced to write its answer
+  // from what it has gathered, rather than erroring out mid-task.
+  const MAX_ROUNDS=14;
   try{
-    for(let round=0;round<6;round++){
-      const res=await fetch(endpoint(target,'/chat/completions'),{method:'POST',headers,body:JSON.stringify({model,messages,tools,stream:false})});
+    for(let round=0;round<MAX_ROUNDS;round++){
+      const finalRound=round===MAX_ROUNDS-1;
+      const payload={model,messages,stream:false}; if(!finalRound) payload.tools=tools;
+      const res=await fetch(endpoint(target,'/chat/completions'),{method:'POST',headers,body:JSON.stringify(payload)});
       if(!res.ok){ const e=await res.json().catch(()=>({})); const err=new Error(oaiErr(e,res.status,messages)); err.status=res.status; throw err; }
       const data=await res.json(); const msg=data.choices?.[0]?.message;
-      if(msg?.tool_calls?.length){
+      if(!finalRound && msg?.tool_calls?.length){
         messages.push({role:'assistant',content:msg.content||'',tool_calls:msg.tool_calls});
         for(const tc of msg.tool_calls){
           usedTools.push(tc.function.name);
@@ -1556,7 +1584,6 @@ async function callOpenAICompat(model,body){
       body.innerHTML=toolChips(usedTools)+renderModelContent(msg?.content||'');
       return answer;
     }
-    throw new Error('Max tool iterations.');
   }catch(e){
     // Many models don't support function-calling — if it failed before any tool ran, retry plainly.
     if(!usedTools.length) return await streamOpenAI(target,model,messages,body);
