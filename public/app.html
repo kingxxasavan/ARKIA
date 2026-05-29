@@ -400,9 +400,6 @@
         <button class="sb-icon-btn" id="theme-btn" onclick="toggleTheme()" title="Toggle theme">
           <svg id="theme-svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
         </button>
-        <button class="sb-icon-btn" id="features-btn" onclick="toggleFeatures()" title="Features">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
-        </button>
         <button class="sb-icon-btn" id="settings-btn" onclick="toggleSettings()" title="Settings">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
         </button>
@@ -475,208 +472,50 @@
       </div>
       <div class="sp-divider" id="account-divider" style="display:none"></div>
 
-      <!-- Provider + Model -->
+      <!-- Model (locked to GLM-4.6 via Ollama Cloud) -->
       <div class="sg">
-        <div class="sg-label">Provider &amp; Model</div>
-        <!-- Server mode banner (visible only when hosted) -->
+        <div class="sg-label">Model</div>
         <div id="server-banner" style="display:none;background:rgba(74,180,100,0.1);border:1px solid rgba(74,180,100,0.3);border-radius:10px;padding:10px 12px;font-size:12px;line-height:1.55;color:var(--text-2);">
-          🔑 <strong>Starter</strong> — Ollama &amp; OpenRouter are free to use, no key needed. For advanced models like Claude or GPT, paste your own API key in that provider below — it stays in your browser and goes straight to the provider.
+          &#9729; <strong>Ollama Cloud</strong> &mdash; included free through this site, no key needed.
           <div id="server-key-status" style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px;font-size:11px;"></div>
         </div>
-
-        <div class="provider-tabs">
-          <button class="provider-tab active" id="tab-anthropic"  onclick="setProvider('anthropic')">Claude</button>
-          <button class="provider-tab"         id="tab-openai"    onclick="setProvider('openai')">OpenAI</button>
-          <button class="provider-tab"         id="tab-openrouter" onclick="setProvider('openrouter')">OpenRouter</button>
-          <button class="provider-tab"         id="tab-ollama"    onclick="setProvider('ollama')">Ollama</button>
-        </div>
-
-        <!-- Anthropic -->
-        <div id="sec-anthropic" class="prov-section visible">
-          <select id="model" class="sp-select" onchange="onModel()">
-            <option value="claude-sonnet-4-20250514">Claude Sonnet 4</option>
-            <option value="claude-opus-4-20250514">Claude Opus 4</option>
-            <option value="claude-haiku-4-5-20251001">Claude Haiku 4.5</option>
-          </select>
-          <div class="local-key-fields">
-            <div class="key-wrap">
-              <input id="api-key" class="key-input" type="password" placeholder="sk-ant-…  (Anthropic API key)" autocomplete="off" />
-              <button class="key-eye" onclick="toggleKey('api-key','eye-svg')" title="Show / hide">
-                <svg id="eye-svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-              </button>
-            </div>
-            <div class="key-st"><div class="key-st-dot" id="k-dot"></div><span class="key-st-txt" id="k-txt">No key saved</span></div>
-            <div class="sg-desc" id="hint-anthropic"></div>
-          </div>
-        </div>
-
-        <!-- OpenAI -->
-        <div id="sec-openai" class="prov-section">
-          <select id="openai-model" class="sp-select" onchange="onModel()">
-            <option value="gpt-4o">GPT-4o</option>
-            <option value="gpt-4o-mini" selected>GPT-4o mini</option>
-            <option value="gpt-4.1">GPT-4.1</option>
-            <option value="gpt-4.1-mini">GPT-4.1 mini</option>
-            <option value="o3-mini">o3-mini (reasoning)</option>
-          </select>
-          <input id="openai-model-custom" class="key-input" type="text" placeholder="…or type a custom model id" oninput="onOpenAICustom(this.value)" />
-          <div class="local-key-fields">
-            <div class="key-wrap">
-              <input id="openai-key" class="key-input" type="password" placeholder="sk-…  (OpenAI API key)" autocomplete="off" />
-              <button class="key-eye" onclick="toggleKey('openai-key','eye-svg-oai')" title="Show / hide">
-                <svg id="eye-svg-oai" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-              </button>
-            </div>
-            <div class="key-st"><div class="key-st-dot" id="oai-dot"></div><span class="key-st-txt" id="oai-txt">No key saved</span></div>
-            <div class="sg-desc" id="hint-openai"></div>
-          </div>
-        </div>
-
-        <!-- OpenRouter — works from any browser when on Replit -->
-        <div id="sec-openrouter" class="prov-section">
-          <select id="or-model" class="sp-select" onchange="onModel()">
-            <optgroup label="Free models">
-              <option value="meta-llama/llama-3.3-70b-instruct:free">Llama 3.3 70B (free)</option>
-              <option value="qwen/qwen3-235b-a22b:free">Qwen 3 235B (free)</option>
-              <option value="deepseek/deepseek-r1:free">DeepSeek R1 (free)</option>
-              <option value="google/gemma-3-27b-it:free">Gemma 3 27B (free)</option>
-              <option value="microsoft/phi-4-reasoning:free">Phi-4 Reasoning (free)</option>
-            </optgroup>
-            <optgroup label="Paid">
-              <option value="openai/gpt-4o">GPT-4o</option>
-              <option value="openai/gpt-4o-mini">GPT-4o mini</option>
-              <option value="openai/gpt-4.1">GPT-4.1</option>
-              <option value="meta-llama/llama-3.3-70b-instruct">Llama 3.3 70B</option>
-            </optgroup>
-          </select>
-          <input id="or-model-custom" class="key-input" type="text" placeholder="…or type any openrouter model id" oninput="onOpenRouterCustom(this.value)" />
-          <div class="local-key-fields">
-            <div class="key-wrap">
-              <input id="openrouter-key" class="key-input" type="password" placeholder="sk-or-…  (OpenRouter key)" autocomplete="off" />
-              <button class="key-eye" onclick="toggleKey('openrouter-key','eye-svg-or')" title="Show / hide">
-                <svg id="eye-svg-or" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-              </button>
-            </div>
-            <div class="key-st"><div class="key-st-dot" id="or-dot"></div><span class="key-st-txt" id="or-txt">No key saved</span></div>
-            <div class="sg-desc" id="hint-openrouter"></div>
-            <div class="sg-desc">Free key at <code class="inl">openrouter.ai/keys</code> — no credit card.</div>
-          </div>
-        </div>
-
-        <!-- Ollama -->
-        <div id="sec-ollama" class="prov-section">
-          <div class="provider-tabs" style="margin-bottom:2px">
-            <button class="provider-tab active" id="tab-ollama-local" onclick="setOllamaMode('local')" style="font-size:11px">💻 Local</button>
-            <button class="provider-tab"        id="tab-ollama-cloud" onclick="setOllamaMode('cloud')" style="font-size:11px">☁ Cloud</button>
-          </div>
-          <div id="ollama-local-section">
-            <div class="sg-desc">Connects to Ollama running on this machine. Set <code class="inl">OLLAMA_ORIGINS=*</code> first.</div>
-            <div class="ollama-url-row">
-              <input id="ollama-url" class="key-input" type="text" value="http://localhost:11434" placeholder="http://localhost:11434" />
-              <button class="fetch-btn" id="fetch-btn" onclick="fetchOllamaModels()">Fetch</button>
-            </div>
-            <select id="ollama-model" class="sp-select" onchange="onModel()" style="display:none"><option value="">— fetch models first —</option></select>
-            <div class="ollama-status"><div class="ollama-dot" id="ollama-dot"></div><span id="ollama-status-txt">Not connected</span></div>
-          </div>
-          <div id="ollama-cloud-section" style="display:none;flex-direction:column;gap:8px">
-            <div class="sg-desc">Ollama Cloud models — included free. Pick one below.</div>
-            <input id="ollama-cloud-model-input" class="key-input" type="text" placeholder="e.g. gpt-oss:120b" oninput="onCloudModelInput(this.value)" />
-            <div style="display:flex;flex-wrap:wrap;gap:5px">
-              <button class="model-sug" onclick="pickCloudModel('gpt-oss:120b')">gpt-oss:120b</button>
-              <button class="model-sug" onclick="pickCloudModel('gpt-oss:20b')">gpt-oss:20b</button>
-              <button class="model-sug" onclick="pickCloudModel('deepseek-v3.1:671b')">deepseek-v3.1:671b</button>
-              <button class="model-sug" onclick="pickCloudModel('qwen3-coder:480b')">qwen3-coder:480b</button>
-              <button class="model-sug" onclick="pickCloudModel('qwen3-vl:235b')">qwen3-vl:235b</button>
-              <button class="model-sug" onclick="pickCloudModel('qwen3:235b')">qwen3:235b</button>
-              <button class="model-sug" onclick="pickCloudModel('kimi-k2:1t')">kimi-k2:1t</button>
-              <button class="model-sug" onclick="pickCloudModel('kimi-k2-thinking')">kimi-k2-thinking</button>
-              <button class="model-sug" onclick="pickCloudModel('glm-4.6')">glm-4.6</button>
-              <button class="model-sug" onclick="pickCloudModel('minimax-m2')">minimax-m2</button>
-              <button class="model-sug" onclick="pickCloudModel('deepseek-v3.1:671b-cloud')">deepseek-v3.1 (cloud)</button>
-              <button class="model-sug" onclick="pickCloudModel('gpt-oss:120b-cloud')">gpt-oss:120b (cloud)</button>
-            </div>
-          </div>
+        <div class="sg-desc">ARIA runs exclusively on <strong>GLM-4.6</strong> over Ollama Cloud &mdash; tuned for it, with no model switching.</div>
+        <div class="model-badge" style="margin-top:6px;width:fit-content;background:rgba(74,180,100,0.1);color:var(--green);border:1px solid rgba(74,180,100,0.2)">GLM-4.6 &middot; Ollama Cloud</div>
+        <div class="sg-sublabel">Your own Ollama key (optional)</div>
+        <div class="sg-desc">Leave blank to use the free shared key. Get one at <code class="inl">ollama.com/settings/keys</code> &mdash; it stays in your browser.</div>
+        <div class="key-wrap">
+          <input id="ollama-cloud-key" class="key-input" type="password" placeholder="Ollama API key (optional)" autocomplete="off" />
+          <button class="key-eye" onclick="toggleKey('ollama-cloud-key','eye-svg-ol')" title="Show / hide">
+            <svg id="eye-svg-ol" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
         </div>
       </div>
 
       <div class="sp-divider"></div>
 
+
       <!-- Memory -->
       <div class="sg">
         <div class="sg-label">Memory</div>
-        <div class="sg-desc">Saved to your account, so ARIA remembers you across devices.</div>
-        <div class="tog-row" id="tog-memory" onclick="tog('memory')">
-          <div class="tog-left"><span class="tog-icon">🧠</span><span class="tog-lbl">Use memory in chats</span></div>
-          <div class="tog-sw"></div>
-        </div>
-        <div class="tog-row" id="tog-autolearn" onclick="tog('autolearn')">
-          <div class="tog-left"><span class="tog-icon">✨</span><span class="tog-lbl">Auto-learn from conversations</span></div>
-          <div class="tog-sw"></div>
-        </div>
-
-        <div class="sg-sublabel">What ARIA should remember</div>
-        <textarea id="mem-input" class="key-input mem-big" rows="2" placeholder="Add something ARIA should remember…" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();addMemoryFact();}"></textarea>
+        <div class="sg-desc">ARIA automatically remembers what it learns about you as you chat &mdash; and you can add things yourself. Saved to your account, so ARIA remembers you across devices.</div>
+        <div class="sg-sublabel">What ARIA knows about you</div>
+        <textarea id="mem-input" class="key-input mem-big" rows="2" placeholder="Tell ARIA something to remember about you&hellip;" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();addMemoryFact();}"></textarea>
         <div class="row-2">
           <button class="btn primary" id="mem-add-btn" onclick="addMemoryFact()">Save</button>
           <button class="btn" onclick="clearMemory()">Clear all</button>
         </div>
         <div class="mem-list" id="mem-list" style="margin-top:8px"></div>
-
-        <div class="sg-sublabel">What ARIA has learned about you</div>
-        <div class="sg-desc">ARIA adds these automatically from your chats — remove anything that's off.</div>
-        <div class="mem-list" id="learned-list"></div>
-        <div class="row-2"><button class="btn" onclick="clearLearned()">Clear learned</button></div>
       </div>
 
       <div class="sp-divider"></div>
 
-      <!-- Saved notes -->
-      <div class="sg">
-        <div class="sg-label">Saved notes</div>
-        <div class="sg-desc">Things to work on later. ARIA can see these and help you pick them back up.</div>
-        <textarea id="note-input" class="key-input mem-big" rows="2" placeholder="Add a note to come back to later…" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();addNote();}"></textarea>
-        <div class="row-2">
-          <button class="btn primary" id="note-add-btn" onclick="addNote()">Save</button>
-          <button class="btn" onclick="clearNotes()">Clear all</button>
-        </div>
-        <div class="mem-list" id="note-list" style="margin-top:8px"></div>
-      </div>
-
-      <div class="sp-divider"></div>
 
       <!-- System prompt -->
       <div class="sg">
         <div class="sg-label">System Prompt</div>
-        <textarea id="sys-p" class="sp-textarea" placeholder="You are a helpful assistant…">You are ARIA, a helpful, direct AI assistant. Match the length of your reply to the question — simple questions get a short, direct answer with no preamble, no bullet lists, and no unsolicited follow-up suggestions. Use headings, bullets, or step-by-step formatting only when the content genuinely needs structure (code, comparisons, multi-step tasks). Do not pad answers with extra caveats or "next steps" the user did not ask for. Use markdown only when it improves clarity.</textarea>
+        <textarea id="sys-p" class="sp-textarea" placeholder="You are a helpful assistant…">You are ARIA, a personal AI assistant running on GLM-4.6 via Ollama. Be direct, accurate, and concise — match the length of your reply to the question and skip preamble, filler, and unsolicited follow-up suggestions. Reason carefully on hard problems but give only the useful conclusion unless asked to show your work. Use markdown — headings, bullets, tables, fenced code blocks — only when it genuinely improves clarity (code, comparisons, multi-step instructions). You have a long-term memory of the user and built-in calendar, reminder, and memory tools; use them naturally when relevant. You are a text model and cannot see images, but you can read documents the user attaches.</textarea>
       </div>
 
-    </div>
-  </div>
-
-  <!-- FEATURES PANEL -->
-  <div id="features-panel" class="slide-panel">
-    <div class="sp-head">
-      <span class="sp-title">Features</span>
-      <button class="sp-close" onclick="closeFeatures()">✕</button>
-    </div>
-    <div class="sp-body">
-      <div class="sg-desc" style="margin-top:-6px">Import abilities into ARIA. When a feature is on, ARIA can use it during a chat — just ask in plain language ("add gym to my calendar tomorrow at 6").</div>
-      <div id="feat-cards" style="display:flex;flex-direction:column;gap:11px"></div>
-
-      <div class="sp-divider"></div>
-
-      <div class="sg">
-        <div class="sg-label">Create a custom feature</div>
-        <div class="sg-desc">Make a simple list ARIA can add to, read back, and remove from — a shopping list, watchlist, packing list, anything.</div>
-        <div class="create-box">
-          <input id="cf-name" class="key-input" type="text" placeholder="Feature name — e.g. Shopping List" />
-          <div class="row-2">
-            <input id="cf-icon" class="key-input" type="text" placeholder="Emoji 🛒" maxlength="2" />
-            <input id="cf-desc" class="key-input" type="text" placeholder="Short description" />
-          </div>
-          <button class="btn primary full" onclick="createCustomFeature()">Add feature</button>
-        </div>
-      </div>
     </div>
   </div>
 
@@ -684,9 +523,8 @@
   <main id="main">
     <div id="topbar">
       <span class="tb-title" id="tb-title">New conversation</span>
-      <span class="tb-badge on" id="b-search">Search ON</span>
-      <span class="model-badge anthropic" id="b-provider">Claude</span>
-      <span class="tb-badge" id="b-model">Sonnet 4</span>
+      <span class="tb-badge" id="b-search">Search OFF</span>
+      <span class="model-badge" style="background:rgba(74,180,100,0.1);color:var(--green);border:1px solid rgba(74,180,100,0.2)">GLM-4.6</span>
     </div>
 
     <div id="messages"></div>
@@ -696,11 +534,11 @@
       <div class="input-box">
         <textarea id="msg-in" rows="1" placeholder="Message ARIA…" onkeydown="onKey(event)" oninput="resize(this)"></textarea>
         <div class="in-bar">
-          <button class="in-icon" onclick="openFilePicker()" title="Attach a file, PDF, or image">
+          <button class="in-icon" onclick="openFilePicker()" title="Attach a document (text, code, or PDF)">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
           </button>
           <button class="tb-pill" id="pill-think" onclick="togglePill('think')" title="Extended thinking"><div class="pill-dot"></div>Think</button>
-          <button class="tb-pill on" id="pill-search" onclick="togglePill('search')" title="Web search"><div class="pill-dot"></div>Search</button>
+          <button class="tb-pill" id="pill-search" onclick="togglePill('search')" title="Web search"><div class="pill-dot"></div>Search</button>
           <div class="in-sp"></div>
           <button class="send-btn" id="send-btn" onclick="send()">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
@@ -714,7 +552,7 @@
 </div>
 
 <div id="toast"></div>
-<input type="file" id="file-in" accept="image/jpeg,image/png,image/gif,image/webp,application/pdf,.pdf" multiple onchange="onFiles(event)" />
+<input type="file" id="file-in" accept="application/pdf,.pdf,.txt,.md,.markdown,.csv,.tsv,.json,.js,.jsx,.ts,.tsx,.py,.java,.c,.h,.cpp,.cc,.hpp,.cs,.go,.rb,.rs,.php,.html,.htm,.css,.scss,.xml,.yml,.yaml,.toml,.ini,.sh,.bash,.sql,.swift,.kt,.kts,.dart,.lua,.r,.pl,.vue,.svelte" multiple onchange="onFiles(event)" />
 
 <!-- Login / signup overlay (shown only when accounts are configured and nobody is signed in) -->
 <div id="auth-overlay" class="auth-overlay" style="display:flex">
@@ -778,13 +616,10 @@ async function detectServerMode(){
   if(SERVER_MODE && status){
     const el=document.getElementById('server-key-status');
     if(el){
-      const labels={anthropic:'Claude',openai:'OpenAI',ollama:'Ollama',openrouter:'OpenRouter'};
-      el.innerHTML=Object.entries(status).map(([id,on])=>
-        `<span style="padding:2px 7px;border-radius:20px;background:${on?'rgba(74,180,100,0.12)':'rgba(180,74,74,0.12)'};border:1px solid ${on?'rgba(74,180,100,0.25)':'rgba(180,74,74,0.25)'};color:${on?'var(--green)':'#b05050'}">${on?'✓ '+(labels[id]||id)+' (free)':(labels[id]||id)+' — your key'}</span>`
-      ).join('');
+      const on=!!status.ollama;
+      el.innerHTML=`<span style="padding:2px 7px;border-radius:20px;background:${on?'rgba(74,180,100,0.12)':'rgba(180,74,74,0.12)'};border:1px solid ${on?'rgba(74,180,100,0.25)':'rgba(180,74,74,0.25)'};color:${on?'var(--green)':'#b05050'}">${on?'✓ Ollama Cloud (free)':'Ollama — add your own key in Settings'}</span>`;
     }
   }
-  refreshKeyHints();
 }
 const SUN_ICON='<circle cx="12" cy="12" r="4.5"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>';
 const MOON_ICON='<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>';
@@ -793,8 +628,8 @@ const MOON_ICON='<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>';
 let history=[], attachments=[], busy=false, settOpen=false, featOpen=false;
 let feats={search:false, think:false, memory:true, autolearn:true};
 let currentConvId=null;
-let provider = LS.get('aria_provider') || 'ollama'; // anthropic | openai | ollama
-let ollamaMode = LS.get('aria_ollama_mode') || 'cloud';  // local | cloud
+const provider = 'ollama';   // locked — ARIA runs only on GLM-4.6 via Ollama Cloud
+const ollamaMode = 'cloud';  // locked — Ollama Cloud only
 
 // Smart auto-scroll: stick to the bottom while streaming, but pause if the user scrolls up.
 let userPinnedUp=false;
@@ -804,7 +639,7 @@ function scrollMsgs(force){ const el=document.getElementById('messages'); if(!el
 //  FEATURES (importable tools the model can call)
 // ════════════════════════════════════════════════
 function loadColl(key){ try{ return JSON.parse(LS.get('feat_'+key)||'[]'); }catch{ return []; } }
-function saveColl(key,arr){ LS.set('feat_'+key,JSON.stringify(arr)); if(featOpen)renderFeatures(); }
+function saveColl(key,arr){ LS.set('feat_'+key,JSON.stringify(arr)); }
 function uid(){ return Math.random().toString(36).slice(2,8); }
 function todayStr(){ return new Date().toISOString().slice(0,10); }
 
@@ -840,19 +675,6 @@ const BUILTIN_FEATURES = [
     ]
   },
   {
-    id:'notes', name:'Notes', icon:'📝',
-    desc:'Save and recall short notes.',
-    coll:'notes',
-    tools:[
-      { name:'note_save', description:'Save a note.',
-        params:{ properties:{ title:{type:'string'}, content:{type:'string'} }, required:['title','content'] },
-        run(a){ const c=loadColl('notes'); c.push({id:uid(),title:a.title,content:a.content}); saveColl('notes',c); return `Saved note "${a.title}".`; } },
-      { name:'note_list', description:'List saved notes.',
-        params:{ properties:{}, required:[] },
-        run(){ const c=loadColl('notes'); if(!c.length) return 'No notes saved.'; return c.map(n=>`• ${n.title}: ${n.content}`).join('\n'); } },
-    ]
-  },
-  {
     id:'memory', name:'Memory', icon:'🧠',
     desc:'Remember durable facts about you and recall them in any chat.',
     coll:'__memory__',
@@ -870,41 +692,14 @@ const BUILTIN_FEATURES = [
   },
 ];
 
-// Custom (user-created) collection features
-function loadCustomFeatures(){ try{ return JSON.parse(LS.get('aria_custom_features')||'[]'); }catch{ return []; } }
-function saveCustomFeatures(list){ LS.set('aria_custom_features',JSON.stringify(list)); }
+// All built-in features are always active — ARIA can use them in any chat,
+// no toggles or importing. (Calendar, Reminders, Memory.)
+function allFeatures(){ return BUILTIN_FEATURES; }
+function enabledFeatures(){ return BUILTIN_FEATURES; }
 
-function customFeatureToDef(cf){
-  const coll = cf.id;
-  return {
-    id: cf.id, name: cf.name, icon: cf.icon||'🧩', desc: cf.desc||('Manage your '+cf.name+'.'),
-    coll, custom:true,
-    tools:[
-      { name:`${coll}_add`, description:`Add an item to the user's ${cf.name}.`,
-        params:{ properties:{ item:{type:'string',description:'The item to add'} }, required:['item'] },
-        run(a){ const c=loadColl(coll); c.push({id:uid(),item:a.item}); saveColl(coll,c); return `Added "${a.item}" to ${cf.name}.`; } },
-      { name:`${coll}_list`, description:`List everything in the user's ${cf.name}.`,
-        params:{ properties:{}, required:[] },
-        run(){ const c=loadColl(coll); if(!c.length) return `${cf.name} is empty.`; return c.map(i=>`• [${i.id}] ${i.item}`).join('\n'); } },
-      { name:`${coll}_remove`, description:`Remove an item from the user's ${cf.name} by its id.`,
-        params:{ properties:{ id:{type:'string'} }, required:['id'] },
-        run(a){ let c=loadColl(coll); const before=c.length; c=c.filter(i=>i.id!==a.id); saveColl(coll,c); return before===c.length?'No item with that id.':`Removed item from ${cf.name}.`; } },
-    ]
-  };
-}
-
-function allFeatures(){ return [...BUILTIN_FEATURES, ...loadCustomFeatures().map(customFeatureToDef)]; }
-function loadFeatureState(){ try{ return JSON.parse(LS.get('aria_feat_state')||'{}'); }catch{ return {}; } }
-function saveFeatureState(s){ LS.set('aria_feat_state',JSON.stringify(s)); }
-function isFeatureOn(id){ return !!loadFeatureState()[id]; }
-function enabledFeatures(){ const st=loadFeatureState(); return allFeatures().filter(f=>st[f.id]); }
-
-// Map tool name -> {run}. Built from enabled features.
+// Map tool name -> {run}. Built from the always-on features.
 function activeToolMap(){ const m={}; enabledFeatures().forEach(f=>f.tools.forEach(t=>{m[t.name]=t;})); return m; }
 function hasFeatureTools(){ return enabledFeatures().length>0; }
-
-// Tool specs in each provider's format
-function featureToolsAnthropic(){ const out=[]; enabledFeatures().forEach(f=>f.tools.forEach(t=>{ out.push({ name:t.name, description:t.description, input_schema:{ type:'object', properties:t.params.properties, required:t.params.required } }); })); return out; }
 function featureToolsOpenAI(){ const out=[]; enabledFeatures().forEach(f=>f.tools.forEach(t=>{ out.push({ type:'function', function:{ name:t.name, description:t.description, parameters:{ type:'object', properties:t.params.properties, required:t.params.required } } }); })); return out; }
 
 function runLocalTool(name, args){
@@ -913,77 +708,18 @@ function runLocalTool(name, args){
   try{ return String(t.run(args||{})); }catch(e){ return 'Tool error: '+(e.message||e); }
 }
 
-// ── Features panel UI ──────────────────────────
-function renderFeatures(){
-  const wrap=document.getElementById('feat-cards'); wrap.innerHTML='';
-  const st=loadFeatureState();
-  allFeatures().forEach(f=>{
-    const on=!!st[f.id];
-    const card=document.createElement('div'); card.className='feat-card'+(on?' on':'');
-    let dataHtml='';
-    if(on){
-      const items=f.id==='memory'?loadMemory().map(t=>({item:t})):loadColl(f.coll);
-      if(!items.length){ dataHtml='<div class="feat-data"><span class="fd-empty">Nothing stored yet.</span></div>'; }
-      else {
-        const rows=items.slice(0,5).map(i=>{
-          if(f.id==='calendar') return `<div class="fd-row"><span>${esc(i.title)}</span><span>${esc(i.date)}${i.time?' '+esc(i.time):''}</span></div>`;
-          if(f.id==='reminders') return `<div class="fd-row"><span>${esc(i.text)}${i.done?' ✓':''}</span><span>${esc(i.due||'')}</span></div>`;
-          if(f.id==='notes') return `<div class="fd-row"><span>${esc(i.title)}</span></div>`;
-          return `<div class="fd-row"><span>${esc(i.item)}</span></div>`;
-        }).join('');
-        const more=items.length>5?`<div class="fd-row"><span class="fd-empty">+${items.length-5} more…</span></div>`:'';
-        dataHtml=`<div class="feat-data">${rows}${more}</div>`;
-      }
-    }
-    card.innerHTML=`
-      <div class="feat-card-head">
-        <div class="feat-ic">${f.icon}</div>
-        <div class="feat-meta"><div class="feat-nm">${esc(f.name)}</div><div class="feat-ds">${esc(f.desc)}</div></div>
-        <div class="tog-row ${on?'on':''}" style="padding:0;border:none;background:none" onclick="toggleFeature('${f.id}')"><div class="tog-sw"></div></div>
-      </div>
-      ${dataHtml}
-      ${f.custom?`<button class="feat-del" onclick="deleteCustomFeature('${f.id}')">Remove feature</button>`:''}
-    `;
-    wrap.appendChild(card);
-  });
-}
-function toggleFeature(id){ const st=loadFeatureState(); st[id]=!st[id]; saveFeatureState(st); renderFeatures(); }
-function createCustomFeature(){
-  const name=document.getElementById('cf-name').value.trim();
-  if(!name){ showToast('Give your feature a name first.'); return; }
-  const icon=document.getElementById('cf-icon').value.trim()||'🧩';
-  const desc=document.getElementById('cf-desc').value.trim();
-  let base=name.toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'').slice(0,20)||'list';
-  const list=loadCustomFeatures();
-  let id=base, n=1; const taken=new Set([...allFeatures().map(f=>f.id)]); while(taken.has(id)){ id=base+'_'+(n++); }
-  list.push({id,name,icon,desc}); saveCustomFeatures(list);
-  const st=loadFeatureState(); st[id]=true; saveFeatureState(st);
-  document.getElementById('cf-name').value=''; document.getElementById('cf-icon').value=''; document.getElementById('cf-desc').value='';
-  renderFeatures(); showToast('Added "'+name+'".', false);
-}
-function deleteCustomFeature(id){
-  saveCustomFeatures(loadCustomFeatures().filter(f=>f.id!==id));
-  const st=loadFeatureState(); delete st[id]; saveFeatureState(st);
-  LS.rm('feat_'+id);
-  renderFeatures();
-}
-
 // ════════════════════════════════════════════════
 //  MEMORY ("learns about you")
 // ════════════════════════════════════════════════
-// Two stores: things the user told ARIA to remember (manual) and things ARIA
-// auto-learned from chats (learned). Both follow the account.
+// Single store: everything ARIA knows about you — auto-learned facts and things
+// you added yourself live together, and follow your account.
 function loadMemory(){ try{ return JSON.parse(LS.get('aria_memory')||'[]'); }catch{ return []; } }
-function loadLearned(){ try{ return JSON.parse(LS.get('aria_learned')||'[]'); }catch{ return []; } }
-function loadNotes(){ try{ return JSON.parse(LS.get('aria_notes')||'[]'); }catch{ return []; } }
-function saveMemory(arr){ LS.set('aria_memory',JSON.stringify(arr)); renderMemory(); if(featOpen)renderFeatures(); persistMemoryAll(); }
-function saveLearned(arr){ LS.set('aria_learned',JSON.stringify(arr)); renderLearned(); persistMemoryAll(); }
-function saveNotes(arr){ LS.set('aria_notes',JSON.stringify(arr)); renderNotes(); persistMemoryAll(); }
-// Persist all stores to the account (Firestore); localStorage is the offline cache.
+function saveMemory(arr){ LS.set('aria_memory',JSON.stringify(arr)); renderMemory(); persistMemoryAll(); }
+// Persist memory to the account (Firestore); localStorage is the offline cache.
 let _memSyncWarned=false;
 function persistMemoryAll(){
   if(!(window.ARIA_UID && window.ARIA_FB && window.ARIA_FB.configured)) return;
-  window.ARIA_FB.saveMemory(window.ARIA_UID, { facts: loadMemory(), learned: loadLearned(), notes: loadNotes() })
+  window.ARIA_FB.saveMemory(window.ARIA_UID, { facts: loadMemory() })
     .catch(err=>{
       console.warn('Memory cloud-save failed:', err);
       if(!_memSyncWarned){ _memSyncWarned=true; showToast('Couldn’t sync to your account. In Firebase, enable Firestore and publish the security rules.'); }
@@ -994,17 +730,17 @@ function mergeFacts(base,incoming){
   (incoming||[]).forEach(f=>{ if(typeof f==='string'&&f.trim()&&!seen.has(f.toLowerCase())){ out.push(f.trim()); seen.add(f.toLowerCase()); added++; } });
   return {out,added};
 }
-// On sign-in, pull this user's saved memory & notes and merge with anything local.
+// On sign-in, pull this user's saved memory and merge with anything local.
+// Older accounts kept auto-learned facts under `learned` — fold those in too.
 async function loadUserMemory(uid){
   if(!(window.ARIA_FB && window.ARIA_FB.configured)) return;
   try{
-    const cloud=await window.ARIA_FB.loadMemory(uid); // { facts, learned, notes }
-    const m=mergeFacts(loadMemory(), (cloud&&cloud.facts)||[]);
-    const l=mergeFacts(loadLearned(), (cloud&&cloud.learned)||[]);
-    const n=mergeFacts(loadNotes(), (cloud&&cloud.notes)||[]);
-    LS.set('aria_memory',JSON.stringify(m.out)); LS.set('aria_learned',JSON.stringify(l.out)); LS.set('aria_notes',JSON.stringify(n.out));
-    renderMemory(); renderLearned(); renderNotes(); if(featOpen)renderFeatures();
-    if(m.added||l.added||n.added) persistMemoryAll();
+    const cloud=await window.ARIA_FB.loadMemory(uid);
+    const incoming=[...((cloud&&cloud.facts)||[]), ...((cloud&&cloud.learned)||[])];
+    const m=mergeFacts(loadMemory(), incoming);
+    LS.set('aria_memory',JSON.stringify(m.out));
+    renderMemory();
+    if(m.added) persistMemoryAll();
   }catch(e){ console.warn('Memory cloud-load failed:', e); }
 }
 // ════════════════════════════════════════════════
@@ -1196,22 +932,12 @@ setTimeout(()=>{ if(!window.ARIA_FB){ showAuthGate('hidden'); } }, 8000);
 function renderMemory(){
   const el=document.getElementById('mem-list'); if(!el) return;
   const mem=loadMemory(); el.innerHTML='';
-  if(!mem.length){ el.innerHTML='<div class="mem-empty">Things you tell ARIA to remember appear here.</div>'; return; }
+  if(!mem.length){ el.innerHTML='<div class="mem-empty">Things ARIA knows about you appear here — it adds them automatically as you chat, and you can add your own above.</div>'; return; }
   mem.forEach((fact,i)=>{
     const row=document.createElement('div'); row.className='mem-item';
     row.innerHTML=`<div class="mem-dot"></div><textarea class="mem-txt" rows="1" onchange="editMemoryFact(${i},this.value)">${esc(fact)}</textarea><button class="mem-x" onclick="removeMemoryFact(${i})">✕</button>`;
     el.appendChild(row);
     const ta=row.querySelector('textarea'); ta.style.height='auto'; ta.style.height=ta.scrollHeight+'px';
-  });
-}
-function renderLearned(){
-  const el=document.getElementById('learned-list'); if(!el) return;
-  const mem=loadLearned(); el.innerHTML='';
-  if(!mem.length){ el.innerHTML='<div class="mem-empty">Nothing learned yet. ARIA adds notes here as you chat.</div>'; return; }
-  mem.forEach((fact,i)=>{
-    const row=document.createElement('div'); row.className='mem-item';
-    row.innerHTML=`<div class="mem-dot"></div><div class="mem-txt" style="padding:1px 0">${esc(fact)}</div><button class="mem-x" onclick="removeLearnedFact(${i})">✕</button>`;
-    el.appendChild(row);
   });
 }
 function addMemoryFact(){
@@ -1222,41 +948,11 @@ function addMemoryFact(){
 }
 function editMemoryFact(i,v){ const mem=loadMemory(); if(v.trim()) mem[i]=v.trim(); else mem.splice(i,1); saveMemory(mem); }
 function removeMemoryFact(i){ const mem=loadMemory(); mem.splice(i,1); saveMemory(mem); }
-function clearMemory(){ if(confirm('Clear everything you told ARIA to remember?')){ saveMemory([]); } }
-function removeLearnedFact(i){ const m=loadLearned(); m.splice(i,1); saveLearned(m); }
-function clearLearned(){ if(confirm('Clear everything ARIA has learned about you?')){ saveLearned([]); } }
+function clearMemory(){ if(confirm('Clear everything ARIA knows about you?')){ saveMemory([]); } }
 function memoryBlock(){
-  if(!feats.memory) return '';
-  const all=[...loadMemory(), ...loadLearned()];
-  if(!all.length) return '';
-  return '\n\nHere is what you already know about the user (their long-term memory). Use it naturally; do not recite it back unless relevant:\n'+all.map(f=>'- '+f).join('\n');
-}
-
-// ── Saved notes (things to work on later) ──
-function renderNotes(){
-  const el=document.getElementById('note-list'); if(!el) return;
-  const notes=loadNotes(); el.innerHTML='';
-  if(!notes.length){ el.innerHTML='<div class="mem-empty">Notes to come back to appear here.</div>'; return; }
-  notes.forEach((note,i)=>{
-    const row=document.createElement('div'); row.className='mem-item';
-    row.innerHTML=`<div class="mem-dot"></div><textarea class="mem-txt" rows="1" onchange="editNote(${i},this.value)">${esc(note)}</textarea><button class="mem-x" onclick="removeNote(${i})">✕</button>`;
-    el.appendChild(row);
-    const ta=row.querySelector('textarea'); ta.style.height='auto'; ta.style.height=ta.scrollHeight+'px';
-  });
-}
-function addNote(){
-  const inp=document.getElementById('note-input'); const v=inp.value.trim(); if(!v) return;
-  const notes=loadNotes(); notes.push(v); saveNotes(notes); inp.value=''; inp.focus();
-  const btn=document.getElementById('note-add-btn');
-  if(btn){ btn.textContent='Saved ✓'; btn.disabled=true; setTimeout(()=>{ btn.textContent='Save'; btn.disabled=false; }, 1200); }
-}
-function editNote(i,v){ const notes=loadNotes(); if(v.trim()) notes[i]=v.trim(); else notes.splice(i,1); saveNotes(notes); }
-function removeNote(i){ const notes=loadNotes(); notes.splice(i,1); saveNotes(notes); }
-function clearNotes(){ if(confirm('Clear all saved notes?')){ saveNotes([]); } }
-function notesBlock(){
-  const notes=loadNotes();
-  if(!notes.length) return '';
-  return '\n\nThe user keeps a list of notes / things they want to work on later. Bring them up only if relevant or asked:\n'+notes.map(f=>'- '+f).join('\n');
+  const mem=loadMemory();
+  if(!mem.length) return '';
+  return '\n\nHere is what you already know about the user (their long-term memory). Use it naturally; do not recite it back unless relevant:\n'+mem.map(f=>'- '+f).join('\n');
 }
 
 // Ask the active model to extract new durable facts from the conversation
@@ -1268,7 +964,7 @@ async function learnFromConversation(manual){
     const c=typeof m.content==='string'?m.content:(Array.isArray(m.content)?m.content.filter(b=>b.type==='text').map(b=>b.text).join(' '):'');
     return (m.role==='user'?'User: ':'Assistant: ')+c;
   }).join('\n');
-  const existing=[...loadMemory(), ...loadLearned()];
+  const existing=loadMemory();
   const prompt=`You curate a long-term profile of THE USER. From the conversation, save only durable, important facts that are clearly about the user and will still matter weeks from now.\n\nSAVE things like:\n- Identity & context: their name, role, where they are, what they do\n- Preferences: how they like answers, tools/languages/brands they prefer, likes and dislikes\n- Projects & work: apps, businesses, studies, or ongoing tasks they are working on\n- Goals & plans: what they are trying to achieve\n- Stable personal facts: routines, important people, lasting constraints\n\nDO NOT save:\n- Anything they merely searched, looked up, or asked about (a person, video, news story, definition, how-to)\n- One-off questions or answers, or details that only matter for this single chat\n- Facts about other people, companies, or topics that are not about the user\n- General knowledge, the assistant, or filler\n\nWrite each fact as one short standalone sentence about the user (e.g. "Is building an app called Vex", "Prefers concise replies without bullet points", "Studying for a chemistry exam").\n\nReturn ONLY a JSON array of fact strings (max 5 new). If nothing qualifies, return [].\n\nAlready stored (skip duplicates or rephrasings):\n${existing.map(f=>'- '+f).join('\n')||'(none)'}\n\nConversation:\n${transcript}`;
   try{
     const raw=await quickComplete(prompt);
@@ -1277,7 +973,7 @@ async function learnFromConversation(manual){
     facts=facts.filter(f=>typeof f==='string'&&f.trim()).map(f=>f.trim());
     const lower=new Set(existing.map(f=>f.toLowerCase()));
     const fresh=facts.filter(f=>!lower.has(f.toLowerCase()));
-    if(fresh.length){ saveLearned([...loadLearned(),...fresh]); if(manual)showToast('Learned '+fresh.length+' new thing'+(fresh.length>1?'s':'')+'.', false); }
+    if(fresh.length){ saveMemory([...loadMemory(),...fresh]); if(manual)showToast('Learned '+fresh.length+' new thing'+(fresh.length>1?'s':'')+'.', false); }
     else if(manual){ showToast('Nothing new to remember.', false); }
   }catch(e){ if(manual)showToast('Could not update memory: '+(e.message||e)); }
   if(manual&&btn){ btn.disabled=false; btn.textContent='Learn from this chat'; }
@@ -1286,13 +982,6 @@ async function learnFromConversation(manual){
 // A tiny one-shot completion using the active provider (no tools, no streaming)
 async function quickComplete(promptText){
   const model=activeModel();
-  if(provider==='anthropic'){
-    const key=LS.get('aria_key')||'';
-    const res=await fetch(ANTHROPIC_URL(),{method:'POST',headers:HDR(key,false),body:JSON.stringify({model,max_tokens:600,messages:[{role:'user',content:promptText}]})});
-    if(!res.ok)throw new Error('HTTP '+res.status);
-    const d=await res.json(); return d.content.filter(b=>b.type==='text').map(b=>b.text).join('\n');
-  }
-  // openai / ollama use the OpenAI-compatible shape
   const target=openAICompatTarget();
   const res=await fetch(endpoint(target,'/chat/completions'),{method:'POST',headers:target.headers,body:JSON.stringify({model,messages:[{role:'user',content:promptText}],stream:false})});
   if(!res.ok)throw new Error('HTTP '+res.status);
@@ -1363,7 +1052,7 @@ function deleteConv(id,e){
 function buildWelcome(){
   const w=document.createElement('div'); w.id='welcome';
   const greeting = window.ARIA_NAME ? ('How can I help, '+esc(window.ARIA_NAME)+'?') : 'How can I help?';
-  w.innerHTML=`<div class="wlc-icon">A</div><div class="wlc-h">${greeting}</div><div class="wlc-sub">Ask me anything. I can search the web, read files, remember you, and use the features you turn on.</div><div class="starter-grid"><div class="starter" onclick="qs('What can you remember about me?')"><div class="s-icon">🧠</div><div class="s-txt">What do you know about me?</div></div><div class="starter" onclick="qs('What are the top AI news stories today?')"><div class="s-icon">📰</div><div class="s-txt">Latest AI news</div></div><div class="starter" onclick="qs('Add \\'finish chemistry lab report\\' to my reminders')"><div class="s-icon">⏰</div><div class="s-txt">Add a reminder</div></div><div class="starter" onclick="qs('Write a Python script to merge multiple CSV files')"><div class="s-icon">💻</div><div class="s-txt">Write Python code</div></div></div>`;
+  w.innerHTML=`<div class="wlc-icon">A</div><div class="wlc-h">${greeting}</div><div class="wlc-sub">Ask me anything. I can read documents you attach, remember what matters about you, and keep your calendar and reminders.</div><div class="starter-grid"><div class="starter" onclick="qs('What can you remember about me?')"><div class="s-icon">🧠</div><div class="s-txt">What do you know about me?</div></div><div class="starter" onclick="qs('What are the top AI news stories today?')"><div class="s-icon">📰</div><div class="s-txt">Latest AI news</div></div><div class="starter" onclick="qs('Add \\'finish chemistry lab report\\' to my reminders')"><div class="s-icon">⏰</div><div class="s-txt">Add a reminder</div></div><div class="starter" onclick="qs('Write a Python script to merge multiple CSV files')"><div class="s-icon">💻</div><div class="s-txt">Write Python code</div></div></div>`;
   return w;
 }
 
@@ -1375,36 +1064,22 @@ function buildWelcome(){
   detectServerMode();
   applyAuthMode();
 
-  // Anthropic key (local mode only)
-  const k=LS.get('aria_key'); if(k){ document.getElementById('api-key').value=k; setKS(true); }
-  document.getElementById('api-key').addEventListener('input',e=>{ const v=e.target.value.trim(); v?LS.set('aria_key',v):LS.rm('aria_key'); setKS(!!v); });
-  // OpenAI key
-  const ok=LS.get('openai_key'); if(ok){ document.getElementById('openai-key').value=ok; setOAIKS(true); }
-  document.getElementById('openai-key').addEventListener('input',e=>{ const v=e.target.value.trim(); v?LS.set('openai_key',v):LS.rm('openai_key'); setOAIKS(!!v); });
-  // OpenRouter key
-  const rk=LS.get('openrouter_key'); if(rk){ document.getElementById('openrouter-key').value=rk; setORKS(true); }
-  document.getElementById('openrouter-key').addEventListener('input',e=>{ const v=e.target.value.trim(); v?LS.set('openrouter_key',v):LS.rm('openrouter_key'); setORKS(!!v); });
-  // restore model selections
-  const am=LS.get('aria_model_anthropic'); if(am) document.getElementById('model').value=am;
-  const om=LS.get('aria_model_openai');    if(om) document.getElementById('openai-model').value=om;
-  const rm=LS.get('aria_model_openrouter'); if(rm){ const sel=document.getElementById('or-model'); if(sel) sel.value=rm; }
-  const cm=LS.get('ollama_cloud_model')||'gpt-oss:120b'; document.getElementById('ollama-cloud-model-input').value=cm; LS.set('ollama_cloud_model',cm);
-  // restore feature toggles
-  const savedFeats=LS.get('aria_feat_flags');
-  if(savedFeats){ try{ Object.assign(feats,JSON.parse(savedFeats)); }catch{} }
-  ['memory','autolearn'].forEach(f=>{ const el=document.getElementById('tog-'+f); if(el)el.classList.toggle('on',feats[f]); });
+  // Optional: the user's own Ollama Cloud key (otherwise the free shared key is used).
+  const ckEl=document.getElementById('ollama-cloud-key');
+  if(ckEl){
+    const ck=LS.get('ollama_cloud_key'); if(ck) ckEl.value=ck;
+    ckEl.addEventListener('input',e=>{ const v=e.target.value.trim(); v?LS.set('ollama_cloud_key',v):LS.rm('ollama_cloud_key'); });
+  }
+
+  // Search & Think start OFF every session — toggle them per-chat with the pills.
+  feats.search=false; feats.think=false;
   document.getElementById('pill-search').classList.toggle('on',feats.search);
   document.getElementById('pill-think').classList.toggle('on',feats.think);
   document.getElementById('b-search').textContent=feats.search?'Search ON':'Search OFF';
   document.getElementById('b-search').classList.toggle('on',feats.search);
 
   applyTheme(LS.get('aria_theme')||'dark');
-  setProvider(provider);
-  setOllamaMode(ollamaMode);
   renderMemory();
-  renderLearned();
-  renderNotes();
-  renderFeatures();
   renderSidebar();
   const _msgsEl=document.getElementById('messages');
   if(_msgsEl) _msgsEl.addEventListener('scroll',()=>{ userPinnedUp=(_msgsEl.scrollHeight-_msgsEl.scrollTop-_msgsEl.clientHeight)>80; });
@@ -1427,144 +1102,36 @@ function toggleTheme(){ applyTheme(document.documentElement.getAttribute('data-t
 // ════════════════════════════════════════════════
 //  BOOT
 
-function setKS(ok){ document.getElementById('k-dot').className='key-st-dot'+(ok?' ok':''); const t=document.getElementById('k-txt'); t.textContent=ok?'Key saved locally':'No key saved'; t.style.color=ok?'#4ade80':'var(--text-3)'; }
-function setOAIKS(ok){ document.getElementById('oai-dot').className='key-st-dot'+(ok?' ok':''); const t=document.getElementById('oai-txt'); t.textContent=ok?'Key saved locally':'No key saved'; t.style.color=ok?'#4ade80':'var(--text-3)'; }
-
-// A user's own key for a provider (empty string if none).
-function ownKey(p){
-  if(p==='anthropic')  return (LS.get('aria_key')||'').trim();
-  if(p==='openai')     return (LS.get('openai_key')||'').trim();
-  if(p==='openrouter') return (LS.get('openrouter_key')||'').trim();
-  if(p==='ollama')     return (LS.get('ollama_cloud_key')||'').trim();
-  return '';
-}
-// Does the server provide a shared key for this provider?
-function serverHasKey(p){ return !!(SERVER_MODE && window.SERVER_KEYS && window.SERVER_KEYS[p]); }
-function hasKeyForProvider(){
-  if(provider==='ollama' && ollamaMode!=='cloud') return true;     // local Ollama needs no key
-  return !!ownKey(provider) || serverHasKey(provider);
-}
-// Per-provider note under each key field: shared key available vs. bring your own.
-function refreshKeyHints(){
-  const ids={anthropic:'hint-anthropic',openai:'hint-openai',openrouter:'hint-openrouter',ollama:'hint-ollama'};
-  for(const p in ids){
-    const el=document.getElementById(ids[p]); if(!el) continue;
-    el.textContent = serverHasKey(p)
-      ? 'Included free — no key needed. Paste your own to use your account.'
-      : 'Advanced — add your own API key to use this provider.';
-  }
-}
+// The user's own Ollama Cloud key (empty string if none).
+function ownKey(){ return (LS.get('ollama_cloud_key')||'').trim(); }
+// Does the server proxy provide a shared Ollama key?
+function serverHasKey(){ return !!(SERVER_MODE && window.SERVER_KEYS && window.SERVER_KEYS.ollama); }
+// We can chat if the server has a shared key or the user pasted their own.
+function hasKeyForProvider(){ return !!ownKey() || serverHasKey(); }
 
 // ════════════════════════════════════════════════
 //  PROVIDER + MODEL
 // ════════════════════════════════════════════════
-function activeModel(){
-  if(provider==='openai'){     const c=document.getElementById('openai-model-custom').value.trim(); return c||document.getElementById('openai-model').value; }
-  if(provider==='openrouter'){ const c=document.getElementById('or-model-custom')?.value.trim();    return c||document.getElementById('or-model')?.value||'meta-llama/llama-3.3-70b-instruct:free'; }
-  if(provider==='ollama'){     return ollamaMode==='cloud' ? document.getElementById('ollama-cloud-model-input').value.trim() : document.getElementById('ollama-model').value; }
-  return document.getElementById('model').value;
-}
-function onModel(){
-  const m=activeModel();
-  const mp={
-    'claude-sonnet-4-20250514':'Sonnet 4','claude-opus-4-20250514':'Opus 4','claude-haiku-4-5-20251001':'Haiku 4.5',
-    'gpt-4o':'GPT-4o','gpt-4o-mini':'GPT-4o mini','gpt-4.1':'GPT-4.1','gpt-4.1-mini':'GPT-4.1 mini',
-    'meta-llama/llama-3.3-70b-instruct:free':'Llama 3.3 70B (free)',
-    'qwen/qwen3-235b-a22b:free':'Qwen 3 235B (free)',
-    'deepseek/deepseek-r1:free':'DeepSeek R1 (free)',
-    'openai/gpt-4o':'GPT-4o (OR)','openai/gpt-4o-mini':'GPT-4o mini (OR)',
-  };
-  const shortLabel = mp[m] || (m ? m.split('/').pop().split(':')[0] : '–');
-  document.getElementById('b-model').textContent = shortLabel;
-  if(provider==='anthropic')  LS.set('aria_model_anthropic',m);
-  if(provider==='openai'&&!document.getElementById('openai-model-custom').value.trim()) LS.set('aria_model_openai',m);
-  if(provider==='openrouter') LS.set('aria_model_openrouter',m);
-}
-function onOpenAICustom(v){ onModel(); }
-function onOpenRouterCustom(v){ onModel(); }
-function setORKS(ok){ const d=document.getElementById('or-dot'); const t=document.getElementById('or-txt'); if(!d||!t)return; d.className='key-st-dot'+(ok?' ok':''); t.textContent=ok?'Key saved locally':'No key saved'; t.style.color=ok?'#4ade80':'var(--text-3)'; }
+// Locked: ARIA runs only on GLM-4.6 over Ollama Cloud.
+function activeModel(){ return 'glm-4.6'; }
 
-function setProvider(p){
-  provider=p; LS.set('aria_provider',p);
-  ['anthropic','openai','openrouter','ollama'].forEach(x=>{
-    const tab=document.getElementById('tab-'+x); if(tab) tab.classList.toggle('active',x===p);
-    const sec=document.getElementById('sec-'+x);  if(sec) sec.classList.toggle('visible',x===p);
-  });
-  const badge=document.getElementById('b-provider');
-  const labels={anthropic:'Claude',openai:'OpenAI',openrouter:'OpenRouter',ollama:'Ollama'};
-  badge.textContent=labels[p]||p;
-  badge.className='model-badge '+(p==='openrouter'?'openrouter':p);
-  onModel();
-}
-
-function setOllamaMode(mode){
-  ollamaMode=mode; LS.set('aria_ollama_mode',mode);
-  document.getElementById('tab-ollama-local').classList.toggle('active',mode==='local');
-  document.getElementById('tab-ollama-cloud').classList.toggle('active',mode==='cloud');
-  document.getElementById('ollama-local-section').style.display=mode==='local'?'':'none';
-  document.getElementById('ollama-cloud-section').style.display=mode==='cloud'?'flex':'none';
-  onModel();
-}
-function pickCloudModel(name){ document.getElementById('ollama-cloud-model-input').value=name; onCloudModelInput(name); }
-function onCloudModelInput(val){
-  LS.set('ollama_cloud_model',(val||'').trim());
-  onModel();
-}
-
-// CORS proxy removed — all hosted calls go through the server, so requests are direct.
-function applyProxy(url){ return url; }
 function endpoint(target,path){ return target.base+path; }
 
-// What base URL + headers to use for OpenAI-compatible providers
-// Per provider: use the user's own key (direct call) when present, otherwise the
-// shared server proxy. Falls back to direct if there's no server.
+// Base URL + headers for the Ollama Cloud OpenAI-compatible API.
+// Uses the user's own key (direct to ollama.com) when present, otherwise the shared server proxy.
 function openAICompatTarget(){
-  if(provider==='openai'){
-    const k=ownKey('openai');
-    if(k) return { base:'https://api.openai.com/v1', headers:{'Content-Type':'application/json','Authorization':'Bearer '+k} };
-    return { base:'/api/openai/v1', headers:{'Content-Type':'application/json'} };
-  }
-  if(provider==='openrouter'){
-    const k=ownKey('openrouter');
-    if(k) return { base:'https://openrouter.ai/api/v1', headers:{'Content-Type':'application/json','Authorization':'Bearer '+k,'HTTP-Referer':location.origin,'X-Title':'ARIA'} };
-    return { base:'/api/openrouter/v1', headers:{'Content-Type':'application/json'} };
-  }
-  // ollama
-  if(ollamaMode==='cloud'){
-    const k=ownKey('ollama');
-    if(k) return { base:'https://ollama.com/v1', headers:{'Content-Type':'application/json','Authorization':'Bearer '+k} };
-    return { base:'/api/ollama/v1', headers:{'Content-Type':'application/json'} };
-  }
-  const localBase=(document.getElementById('ollama-url').value||'http://localhost:11434').replace(/\/$/,'');
-  return { base:localBase+'/v1', headers:{'Content-Type':'application/json'} };
-}
-
-async function fetchOllamaModels(){
-  const dot=document.getElementById('ollama-dot'), txt=document.getElementById('ollama-status-txt'), sel=document.getElementById('ollama-model');
-  const btn=document.getElementById('fetch-btn');
-  btn.disabled=true; btn.textContent='…'; dot.className='ollama-dot'; txt.textContent='Connecting…';
-  const base=(document.getElementById('ollama-url').value||'http://localhost:11434').replace(/\/$/,'');
-  try{
-    const res=await fetch(base+'/api/tags',{signal:AbortSignal.timeout(8000)});
-    if(!res.ok)throw new Error('HTTP '+res.status);
-    const data=await res.json(); const models=(data.models||[]).map(m=>m.name).sort();
-    sel.innerHTML=''; if(!models.length){ sel.innerHTML='<option value="">No models found</option>'; }
-    else models.forEach(m=>{ const o=document.createElement('option'); o.value=m; o.textContent=m; sel.appendChild(o); });
-    sel.style.display='block'; dot.className='ollama-dot ok'; txt.textContent=`${models.length} model${models.length!==1?'s':''} found`; onModel();
-  }catch(err){ dot.className='ollama-dot err'; txt.textContent='Cannot connect — is Ollama running?'; console.error(err); }
-  btn.disabled=false; btn.textContent='Fetch';
+  const k=ownKey('ollama');
+  if(k) return { base:'https://ollama.com/v1', headers:{'Content-Type':'application/json','Authorization':'Bearer '+k} };
+  return { base:'/api/ollama/v1', headers:{'Content-Type':'application/json'} };
 }
 
 // ════════════════════════════════════════════════
 //  PANELS
 // ════════════════════════════════════════════════
 function toggleSettings(){ settOpen?closeSettings():openSettings(); }
-function openSettings(){ closeFeatures(); settOpen=true; document.getElementById('settings-panel').classList.add('open'); document.getElementById('backdrop').classList.add('open'); document.getElementById('settings-btn').classList.add('active'); }
-function closeSettings(){ settOpen=false; document.getElementById('settings-panel').classList.remove('open'); document.getElementById('settings-btn').classList.remove('active'); if(!featOpen)document.getElementById('backdrop').classList.remove('open'); }
-function toggleFeatures(){ featOpen?closeFeatures():openFeatures(); }
-function openFeatures(){ closeSettings(); featOpen=true; renderFeatures(); document.getElementById('features-panel').classList.add('open'); document.getElementById('backdrop').classList.add('open'); document.getElementById('features-btn').classList.add('active'); }
-function closeFeatures(){ featOpen=false; document.getElementById('features-panel').classList.remove('open'); document.getElementById('features-btn').classList.remove('active'); if(!settOpen)document.getElementById('backdrop').classList.remove('open'); }
-function closeAllPanels(){ closeSettings(); closeFeatures(); document.getElementById('backdrop').classList.remove('open'); }
+function openSettings(){ settOpen=true; document.getElementById('settings-panel').classList.add('open'); document.getElementById('backdrop').classList.add('open'); document.getElementById('settings-btn').classList.add('active'); }
+function closeSettings(){ settOpen=false; document.getElementById('settings-panel').classList.remove('open'); document.getElementById('settings-btn').classList.remove('active'); document.getElementById('backdrop').classList.remove('open'); }
+function closeAllPanels(){ closeSettings(); document.getElementById('backdrop').classList.remove('open'); }
 
 function toggleKey(inputId,svgId){
   const inp=document.getElementById(inputId); const show=inp.type==='password'; inp.type=show?'text':'password';
@@ -1574,7 +1141,6 @@ function toggleKey(inputId,svgId){
   if(show)inp.focus();
 }
 
-function tog(f){ feats[f]=!feats[f]; document.getElementById('tog-'+f).classList.toggle('on',feats[f]); saveFeatFlags(); }
 function togglePill(f){
   feats[f]=!feats[f]; document.getElementById('pill-'+f).classList.toggle('on',feats[f]); saveFeatFlags();
   if(f==='search'){ const bs=document.getElementById('b-search'); bs.textContent=feats.search?'Search ON':'Search OFF'; bs.classList.toggle('on',feats.search); }
@@ -1584,13 +1150,8 @@ function togglePill(f){
 //  FILES + UI HELPERS
 // ════════════════════════════════════════════════
 // Does the current model accept images? Images are only offered when it does.
-function modelSupportsVision(){
-  const m=(activeModel()||'').toLowerCase();
-  if(provider==='anthropic') return true;
-  if(provider==='openai')    return /gpt-4o|gpt-4\.1|chatgpt-4o|o4|vision/.test(m);
-  if(provider==='openrouter')return /\b(vl|vision|llava|pixtral)\b|gpt-4o|gpt-4\.1|claude|gemini|qwen.*vl|llama-3\.2-(11|90)|grok.*vision|internvl|molmo/.test(m);
-  return /\bvl\b|vision|llava|minicpm-v|moondream/.test(m); // ollama (gemma, gpt-oss, etc. are text-only)
-}
+// GLM-4.6 is a text-only model — it cannot analyse images.
+function modelSupportsVision(){ return false; }
 const CODE_EXT='.txt,.md,.markdown,.csv,.tsv,.json,.js,.jsx,.ts,.tsx,.py,.java,.c,.h,.cpp,.cc,.hpp,.cs,.go,.rb,.rs,.php,.html,.htm,.css,.scss,.xml,.yml,.yaml,.toml,.ini,.sh,.bash,.sql,.swift,.kt,.kts,.dart,.lua,.r,.pl,.vue,.svelte';
 function isTextFile(f){
   if(f.type.startsWith('text/')) return true;
@@ -1600,26 +1161,48 @@ function isTextFile(f){
 function readText(f){ return new Promise((r,j)=>{ const rd=new FileReader(); rd.onload=()=>r(rd.result); rd.onerror=j; rd.readAsText(f); }); }
 function openFilePicker(){
   const inp=document.getElementById('file-in');
-  inp.accept=(modelSupportsVision()?'image/jpeg,image/png,image/gif,image/webp,':'')+'application/pdf,.pdf,'+CODE_EXT;
+  inp.accept='application/pdf,.pdf,'+CODE_EXT;
   inp.click();
 }
+// Lazy-load pdf.js so we can read the text out of PDFs right in the browser.
+let _pdfjsP;
+function loadPdfJs(){
+  if(_pdfjsP) return _pdfjsP;
+  _pdfjsP=new Promise((res,rej)=>{
+    const s=document.createElement('script');
+    s.src='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+    s.onload=()=>{ try{ window.pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'; }catch(e){} res(); };
+    s.onerror=()=>{ _pdfjsP=null; rej(new Error('pdf lib')); };
+    document.head.appendChild(s);
+  });
+  return _pdfjsP;
+}
+async function extractPdfText(f){
+  await loadPdfJs();
+  const buf=await f.arrayBuffer();
+  const pdf=await window.pdfjsLib.getDocument({data:buf}).promise;
+  let out=''; const max=Math.min(pdf.numPages,50);
+  for(let i=1;i<=max;i++){ const page=await pdf.getPage(i); const tc=await page.getTextContent(); out+=tc.items.map(it=>it.str).join(' ')+'\n\n'; }
+  return out.trim();
+}
 async function onFiles(e){
-  const okImg=['image/jpeg','image/png','image/gif','image/webp'];
-  const vision=modelSupportsVision();
   for(const f of e.target.files){
     if(f.type.startsWith('image/')){
-      if(!vision){ showToast('This model can’t read images — switch to a vision model (Claude, GPT-4o, or qwen3-vl).'); continue; }
-      if(!okImg.includes(f.type)){ showToast('Unsupported image ('+(f.type||'unknown')+'). Use JPG, PNG, GIF, or WebP.'); continue; }
-      if(f.size>18*1024*1024){ showToast(f.name+' is too large (max ~18 MB).'); continue; }
-      try{ const d=await toB64(f); attachments.push({name:f.name,type:f.type,kind:'image',data:d}); }catch{ showToast('Could not read '+f.name+'.'); }
+      showToast('ARIA doesn’t support image analysis — it runs on GLM-4.6, a text-only model. Attach a document (text, code, or PDF) instead.');
+      continue;
     } else if(f.type==='application/pdf' || /\.pdf$/i.test(f.name)){
       if(f.size>18*1024*1024){ showToast(f.name+' is too large (max ~18 MB).'); continue; }
-      try{ const d=await toB64(f); attachments.push({name:f.name,type:'application/pdf',kind:'pdf',data:d}); }catch{ showToast('Could not read '+f.name+'.'); }
+      showToast('Reading '+f.name+'…', false);
+      try{
+        const text=await extractPdfText(f);
+        if(text && text.trim()) attachments.push({name:f.name,type:'application/pdf',kind:'text',text:text});
+        else showToast('Couldn’t find readable text in '+f.name+' — it may be a scanned image.');
+      }catch{ showToast('Couldn’t read '+f.name+' as a PDF.'); }
     } else if(isTextFile(f)){
       if(f.size>1.5*1024*1024){ showToast(f.name+' is too large to read as text.'); continue; }
       try{ const t=await readText(f); attachments.push({name:f.name,type:f.type||'text/plain',kind:'text',text:t}); }catch{ showToast('Could not read '+f.name+'.'); }
     } else {
-      showToast('Unsupported file type: '+f.name);
+      showToast('Unsupported file type: '+f.name+'. Attach a text, code, or PDF document.');
     }
   }
   renderChips(); e.target.value='';
@@ -1747,7 +1330,7 @@ async function send(){
   if(busy)return;
   if(!hasKeyForProvider()){
     openSettings();
-    showToast(provider==='ollama'?'Connect Ollama in Settings.':'Enter your API key in Settings.');
+    showToast('No Ollama Cloud access yet — add your Ollama key in Settings, or set OLLAMA_KEY on the server.');
     return;
   }
   const inp=document.getElementById('msg-in'); const txt=inp.value.trim();
@@ -1761,9 +1344,7 @@ async function send(){
 
   const parts=[]; const fnames=attachments.map(a=>a.name).join(', ');
   for(const a of attachments){
-    if(a.kind==='pdf')parts.push({type:'document',source:{type:'base64',media_type:'application/pdf',data:a.data}});
-    else if(a.kind==='image')parts.push({type:'image',source:{type:'base64',media_type:a.type,data:a.data}});
-    else if(a.kind==='text')parts.push({type:'text',text:`[File: ${a.name}]\n\n\`\`\`\n${a.text}\n\`\`\``});
+    if(a.kind==='text')parts.push({type:'text',text:`[File: ${a.name}]\n\n\`\`\`\n${a.text}\n\`\`\``});
   }
   if(txt)parts.push({type:'text',text:txt});
 
@@ -1776,9 +1357,7 @@ async function send(){
 
   const body=addAI();
   try{
-    let reply;
-    if(provider==='anthropic') reply=await callAnthropic(model,body);
-    else reply=await callOpenAICompat(model,body); // openai + ollama
+    const reply=await callOpenAICompat(model,body);
     body.innerHTML=md(reply);
     enhanceMessage(body, reply);
     history.push({role:'assistant',content:reply});
@@ -1797,79 +1376,10 @@ function systemPrompt(){
   const nameLine = window.ARIA_NAME ? `\nThe user's name is ${window.ARIA_NAME}. Do NOT begin replies with their name or greet them every message; only use it occasionally when it genuinely fits.` : '';
   const style = `\nFormatting: never use horizontal rules or lines of dashes (such as "---", "—", or "|----|") to separate sections. Just use short paragraphs, and headings or bullets only when truly needed.`;
   const files = `\nDownloads: the user can download your replies as a PDF, and any fenced code block as a file. When asked to create a document, file, or code, write the complete content directly in your reply (put code in a fenced code block with its language); don't say you can't make files.`;
-  return base+nameLine+style+files+`\nToday is ${new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}.`+memoryBlock()+notesBlock();
+  return base+nameLine+style+files+`\nToday is ${new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}.`+memoryBlock();
 }
 
-// ── Anthropic ──────────────────────────────────
-const ANTHROPIC_URL = () => ownKey('anthropic') ? 'https://api.anthropic.com/v1/messages' : '/api/anthropic/v1/messages';
-const HDR=(k,thinking)=>{
-  const h={'Content-Type':'application/json','anthropic-version':'2023-06-01'};
-  if(ownKey('anthropic')){ h['x-api-key']=k; h['anthropic-dangerous-direct-browser-access']='true'; } // direct call with the user's key
-  if(thinking) h['anthropic-beta']='interleaved-thinking-2025-05-14';
-  return h;
-};
-
-async function callAnthropic(model,body){
-  const key=LS.get('aria_key')||'';
-  const clientTools=featureToolsAnthropic();
-  const tools=[...clientTools];
-  if(feats.search)tools.push({type:'web_search_20250305',name:'web_search'});
-  const payload={ model, max_tokens:feats.think?16000:4096, system:systemPrompt(), messages:[...history] };
-  if(tools.length)payload.tools=tools;
-  if(feats.think)payload.thinking={type:'enabled',budget_tokens:10000};
-
-  if(!clientTools.length && !feats.think){
-    return await streamAnthropic(key,payload,body);
-  }
-
-  let msgs=[...history]; let usedTools=[];
-  for(let i=0;i<6;i++){
-    const res=await fetch(ANTHROPIC_URL(),{method:'POST',headers:HDR(key,feats.think),body:JSON.stringify({...payload,messages:msgs})});
-    if(!res.ok){ const e=await res.json().catch(()=>({})); throw new Error(e.error?.message||`HTTP ${res.status}`); }
-    const data=await res.json();
-    const think=data.content.filter(b=>b.type==='thinking');
-    const texts=data.content.filter(b=>b.type==='text');
-    const clientCalls=data.content.filter(b=>b.type==='tool_use'&&activeToolMap()[b.name]);
-
-    if(clientCalls.length){
-      clientCalls.forEach(c=>usedTools.push(c.name));
-      body.innerHTML=toolChips(usedTools)+'<div class="searching"><div class="sp"></div>Using features…</div>';
-      msgs.push({role:'assistant',content:data.content});
-      msgs.push({role:'user',content:clientCalls.map(c=>({type:'tool_result',tool_use_id:c.id,content:runLocalTool(c.name,c.input)}))});
-      continue;
-    }
-    let html=''; think.forEach(tb=>{ html+=`<div class="think-block"><div class="think-label">💭 Thinking</div>${esc(tb.thinking).replace(/\n/g,'<br>')}</div>`; });
-    const answer=texts.map(b=>b.text).join('\n');
-    body.innerHTML=toolChips(usedTools)+html+md(answer);
-    return answer;
-  }
-  throw new Error('Max tool iterations.');
-}
-
-async function streamAnthropic(key,payload,body){
-  const res=await fetch(ANTHROPIC_URL(),{method:'POST',headers:HDR(key,false),body:JSON.stringify({...payload,stream:true})});
-  if(!res.ok){ const e=await res.json().catch(()=>({})); throw new Error(e.error?.message||`HTTP ${res.status}`); }
-  const reader=res.body.getReader(); const dec=new TextDecoder();
-  let full='',buf='',started=false,searched=false;
-  while(true){
-    const{done,value}=await reader.read(); if(done)break;
-    buf+=dec.decode(value,{stream:true}); const lines=buf.split('\n'); buf=lines.pop();
-    for(const line of lines){
-      if(!line.startsWith('data: '))continue; const raw=line.slice(6).trim(); if(raw==='[DONE]')continue;
-      try{
-        const evt=JSON.parse(raw);
-        if(evt.type==='content_block_start'&&evt.content_block?.type==='server_tool_use'){ searched=true; body.innerHTML='<div class="searching"><div class="sp"></div>Searching the web…</div>'; }
-        if(evt.type==='content_block_delta'&&evt.delta?.type==='text_delta'){
-          if(!started){ started=true; body.innerHTML=''; }
-          full+=evt.delta.text; body.innerHTML=md(full); scrollMsgs();
-        }
-      }catch(_){}
-    }
-  }
-  return full;
-}
-
-// ── OpenAI-compatible (OpenAI + Ollama) ─────────
+// ── Ollama Cloud (OpenAI-compatible) ─────────
 function toOAIMessages(){
   const out=[{role:'system',content:systemPrompt()}];
   history.forEach(m=>{

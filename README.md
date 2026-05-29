@@ -1,11 +1,12 @@
 # ARIA — Personal AI Assistant
 
-A clean, multi-provider AI chat app with **accounts** (Firebase) and **per-user memory + chat history** that follow you across devices. Supports Claude, OpenAI, Ollama Cloud, and OpenRouter.
+A clean AI chat app running on **GLM-4.6 via Ollama Cloud**, with **accounts** (Firebase) and **per-user memory + chat history** that follow you across devices.
 
 - **Accounts** — email/password + Google sign-in (Firebase Auth)
-- **Memory** — ARIA builds a profile of your preferences, tasks, and projects, saved to your account
+- **Memory** — ARIA keeps a single profile of what it learns about you (auto-learned as you chat, plus anything you add), saved to your account
 - **Chat history** — conversations sync to your account (Firestore)
-- **Importable features** — Calendar, Reminders, Notes, plus custom list tools the AI can read/write
+- **Built-in tools** — Calendar, Reminders, and Memory, always available to ARIA (no setup or toggles)
+- **Documents** — attach text, code, or PDF files and ARIA reads them (it's a text model, so images aren't analysed)
 - **Web search**, **dark mode**, and a tunable system prompt
 
 The Firebase config is embedded in the client (this is normal — Firebase web keys are public). Security comes from Firebase Auth + the Firestore rules below.
@@ -41,18 +42,15 @@ In the [Firebase console](https://console.firebase.google.com) for project **ari
 
 ### Option A — Vercel
 1. Import this repo in Vercel (it auto-detects `vercel.json`).
-2. **Settings → Environment Variables** — add the AI keys you want kept server-side:
+2. **Settings → Environment Variables** — set your Ollama Cloud key so calls are proxied server-side:
 
    | Variable | Where to get it |
    |----------|-----------------|
-   | `ANTHROPIC_KEY` | console.anthropic.com |
-   | `OPENAI_KEY` | platform.openai.com/api-keys |
    | `OLLAMA_KEY` | ollama.com/settings/keys |
-   | `OPENROUTER_KEY` | openrouter.ai/keys (free) |
 
 3. Deploy, then add the Vercel domain to Firebase **Authorized domains** (step 1.3).
 
-With keys set, `server.js` proxies AI calls server-side (no keys in the browser).
+With the key set, `server.js` proxies the GLM-4.6 calls server-side (no key in the browser).
 
 ### Option B — Firebase Hosting (static)
 ```bash
@@ -60,8 +58,8 @@ npm install -g firebase-tools
 firebase login
 firebase deploy        # publishes public/ to https://arikia.web.app
 ```
-On static hosting there's no server, so each user enters their own AI key in **Settings**
-(Claude / OpenAI / OpenRouter work directly from the browser).
+On static hosting there's no server, so each user pastes their own Ollama Cloud key in **Settings**
+(calls go straight to ollama.com from the browser).
 
 ---
 
