@@ -90,7 +90,8 @@
   .site{position:relative;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r);padding:18px;display:flex;flex-direction:column;gap:12px;transition:border-color .15s,box-shadow .15s,transform .15s;animation:rise .5s cubic-bezier(.2,.7,.3,1) both}
   .site:hover{border-color:var(--border-md);box-shadow:var(--shadow);transform:translateY(-2px)}
   .site-top{display:flex;align-items:center;gap:12px}
-  .site-av{width:40px;height:40px;border-radius:11px;flex-shrink:0;background:var(--accent);color:#fff;font-family:var(--serif);font-size:19px;display:flex;align-items:center;justify-content:center}
+  .site-av{position:relative;overflow:hidden;width:40px;height:40px;border-radius:11px;flex-shrink:0;background:var(--accent);color:#fff;font-family:var(--serif);font-size:19px;display:flex;align-items:center;justify-content:center}
+  .site-av img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#fff}
   .site-meta{min-width:0;flex:1}
   .site-name{font-size:16px;font-weight:600;color:var(--text-1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .site-host{font-family:var(--mono);font-size:11.5px;color:var(--text-3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -131,6 +132,8 @@
   .field input,.field textarea{width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--border-md);background:var(--bg-card);color:var(--text-1);font-family:var(--sans);font-size:14px;outline:none;transition:border-color .15s;resize:vertical}
   .field input:focus,.field textarea:focus{border-color:var(--accent)}
   .modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:6px}
+  .imp-toggle{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text-2);cursor:pointer;user-select:none}
+  .imp-toggle input{width:auto;margin:0}
   .modal-or{display:flex;align-items:center;gap:10px;color:var(--text-3);font-size:11px;text-transform:uppercase;letter-spacing:.08em;margin:14px 0}
   .modal-or::before,.modal-or::after{content:'';flex:1;height:1px;background:var(--border-md)}
   .modal-err{font-size:12px;color:var(--danger);min-height:14px;margin-bottom:4px}
@@ -249,6 +252,10 @@
       <label>What it does</label>
       <textarea id="f-desc" rows="2" placeholder="Short note about this site…"></textarea>
     </div>
+    <div class="field">
+      <label>Image URL <span style="color:var(--text-3);font-weight:400">(optional — defaults to the site's icon)</span></label>
+      <input id="f-img" type="text" placeholder="https://…/logo.png" />
+    </div>
     <div class="modal-actions">
       <button class="btn" onclick="closeModal()">Cancel</button>
       <button class="btn primary" id="save-btn" onclick="saveSite()">Save</button>
@@ -260,19 +267,20 @@
 <div id="import-back" class="modal-back" onclick="if(event.target===this)closeImport()">
   <div class="modal">
     <div class="modal-title">Import bookmarks</div>
-    <div class="modal-note">Paste one link per line. Each line can be just a <code>url</code>, or <code>Name | url | short note</code>. Exported browser-bookmark HTML works too. They'll all land in the category below — you can edit any of them afterwards.</div>
+    <div class="modal-note">Paste links <em>or just site names</em>, one per line. ARIA can find the page, sort it into a category, write a short description, and grab an icon. You can edit anything afterwards. Exported browser-bookmark HTML works too.</div>
     <div class="field">
-      <label>Category for these</label>
-      <input id="imp-cat" type="text" list="cat-list" placeholder="e.g. Reading (leave blank for none)" />
+      <label>Links or names</label>
+      <textarea id="imp-text" rows="8" placeholder="github&#10;https://news.ycombinator.com&#10;Figma | figma.com&#10;notion.so | notes & docs"></textarea>
     </div>
-    <div class="field">
-      <label>Links</label>
-      <textarea id="imp-text" rows="8" placeholder="https://news.ycombinator.com&#10;GitHub | github.com | code hosting&#10;arxiv.org | papers"></textarea>
+    <label class="imp-toggle"><input id="imp-ai" type="checkbox" checked /> <span>Enhance with ARIA — auto category, description &amp; icon</span></label>
+    <div class="field" style="margin-top:14px">
+      <label>Category <span style="color:var(--text-3);font-weight:400">(optional — leave blank to let ARIA sort them)</span></label>
+      <input id="imp-cat" type="text" list="cat-list" placeholder="e.g. Reading" />
     </div>
     <div class="modal-note" id="imp-note" style="color:var(--accent)"></div>
     <div class="modal-actions">
-      <button class="btn" onclick="closeImport()">Cancel</button>
-      <button class="btn primary" onclick="runImport()">Add links</button>
+      <button class="btn" id="imp-cancel" onclick="closeImport()">Cancel</button>
+      <button class="btn primary" id="imp-go" onclick="runImport()">Add links</button>
     </div>
   </div>
 </div>
@@ -338,15 +346,17 @@
   function buildCard(s,i){
     const url=normalizeUrl(s.url);
     const letter=(((s.name||'?').trim()[0])||'?').toUpperCase();
+    const img=(s.image||siteIcon(url));
     const card=document.createElement('div'); card.className='site'; card.style.animationDelay=(Math.min(i,12)*0.04)+'s';
     let actions='<a class="btn primary sm" href="'+esc(url)+'" target="_blank" rel="noopener">Open &#8599;</a>';
     if(isAdmin){
       actions+='<button class="icon-btn" title="Edit" onclick="openEdit(\''+s.id+'\')">&#9998;</button>'+
                '<button class="icon-btn danger" title="Remove" onclick="removeSite(\''+s.id+'\')">&#10005;</button>';
     }
+    const avImg=img ? '<img src="'+esc(img)+'" alt="" loading="lazy" onerror="this.remove()">' : '';
     card.innerHTML=
       '<div class="site-top">'+
-        '<div class="site-av">'+esc(letter)+'</div>'+
+        '<div class="site-av">'+esc(letter)+avImg+'</div>'+
         '<div class="site-meta">'+
           '<div class="site-name">'+esc(s.name||'Untitled')+'</div>'+
           '<div class="site-host">'+esc(hostOf(url)||'—')+'</div>'+
@@ -396,54 +406,132 @@
   // ── Add / edit ─────────────────────────────────────────────────────────
   function showModal(){ document.getElementById('modal-back').classList.add('show'); setTimeout(()=>document.getElementById('f-name').focus(),50); }
   function closeModal(){ document.getElementById('modal-back').classList.remove('show'); }
-  function setFields(n,u,d,c){ document.getElementById('f-name').value=n||''; document.getElementById('f-url').value=u||''; document.getElementById('f-desc').value=d||''; document.getElementById('f-cat').value=c||''; }
-  function openAdd(){ if(!isAdmin)return; editingId=null; document.getElementById('modal-title').textContent='Add a site'; setFields('','','',''); showModal(); }
-  function openEdit(id){ if(!isAdmin)return; const s=sites.find(x=>x.id===id); if(!s)return; editingId=id; document.getElementById('modal-title').textContent='Edit site'; setFields(s.name,s.url,s.desc,s.category); showModal(); }
+  function setFields(n,u,d,c,img){ document.getElementById('f-name').value=n||''; document.getElementById('f-url').value=u||''; document.getElementById('f-desc').value=d||''; document.getElementById('f-cat').value=c||''; document.getElementById('f-img').value=img||''; }
+  function openAdd(){ if(!isAdmin)return; editingId=null; document.getElementById('modal-title').textContent='Add a site'; setFields('','','','',''); showModal(); }
+  function openEdit(id){ if(!isAdmin)return; const s=sites.find(x=>x.id===id); if(!s)return; editingId=id; document.getElementById('modal-title').textContent='Edit site'; setFields(s.name,s.url,s.desc,s.category,s.image); showModal(); }
   function saveSite(){
     if(!isAdmin)return;
     const name=document.getElementById('f-name').value.trim();
     const url=document.getElementById('f-url').value.trim();
     const desc=document.getElementById('f-desc').value.trim();
     const category=document.getElementById('f-cat').value.trim();
+    const image=document.getElementById('f-img').value.trim();
     if(!name){ document.getElementById('f-name').focus(); return; }
     if(!url){ document.getElementById('f-url').focus(); return; }
-    if(editingId){ const s=sites.find(x=>x.id===editingId); if(s){ s.name=name; s.url=url; s.desc=desc; s.category=category; } }
-    else { sites.push({id:uid(),name,url,desc,category}); }
+    if(editingId){ const s=sites.find(x=>x.id===editingId); if(s){ s.name=name; s.url=url; s.desc=desc; s.category=category; s.image=image; } }
+    else { sites.push({id:uid(),name,url,desc,category,image}); }
     persist(); render(); closeModal();
   }
+  // Favicon/icon URL for a page, used as the default card image.
+  function siteIcon(url){ const h=hostOf(normalizeUrl(url)); return h ? ('https://www.google.com/s2/favicons?domain='+encodeURIComponent(h)+'&sz=128') : ''; }
   function removeSite(id){ if(!isAdmin)return; if(confirm('Remove this site from the hub?')){ sites=sites.filter(s=>s.id!==id); persist(); render(); } }
 
   // ── Bulk import bookmarks ───────────────────────────────────────────────
-  function openImport(){ if(!isAdmin)return; document.getElementById('imp-cat').value=''; document.getElementById('imp-text').value=''; document.getElementById('imp-note').textContent=''; document.getElementById('import-back').classList.add('show'); setTimeout(()=>document.getElementById('imp-cat').focus(),50); }
+  function openImport(){
+    if(!isAdmin)return;
+    document.getElementById('imp-cat').value=''; document.getElementById('imp-text').value='';
+    document.getElementById('imp-note').textContent=''; document.getElementById('imp-note').style.color='var(--accent)';
+    document.getElementById('import-back').classList.add('show');
+    setTimeout(()=>document.getElementById('imp-text').focus(),50);
+  }
   function closeImport(){ document.getElementById('import-back').classList.remove('show'); }
   const looksUrl=s=>/^https?:\/\//i.test(s)||/^[\w-]+(\.[\w-]+)+(\/|$|\?)/i.test(s);
-  function parseBookmarks(text){
+
+  // Parse pasted text into raw entries. Unlike before, name-only lines are kept
+  // (ARIA can find the URL for them).
+  function parseEntries(text){
     const out=[];
-    // Exported browser bookmarks (Netscape HTML): <A HREF="url">Name</A>
     const htmlRe=/<a\b[^>]*href\s*=\s*["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi;
     let m, isHtml=false;
     while((m=htmlRe.exec(text))){ isHtml=true; const url=m[1].trim(); const name=m[2].replace(/<[^>]+>/g,'').trim(); if(url&&!/^javascript:/i.test(url)) out.push({name,url,desc:''}); }
     if(isHtml) return out;
-    // Otherwise one entry per line: "url" | "Name | url | note" | "Name <tab> url"
     text.split(/\r?\n/).forEach(line=>{
       const raw=line.trim(); if(!raw) return;
       let parts = raw.includes('|') ? raw.split('|') : (raw.indexOf('\t')>=0 ? raw.split('\t') : [raw]);
       parts=parts.map(p=>p.trim()).filter(Boolean);
       let name='',url='',desc='';
-      if(parts.length===1){ url=parts[0]; }
-      else { const ui=parts.findIndex(looksUrl); if(ui<0){ name=parts[0]; url=parts[1]; desc=parts.slice(2).join(' '); } else { url=parts[ui]; const rest=parts.filter((_,i)=>i!==ui); name=rest[0]||''; desc=rest.slice(1).join(' '); } }
-      if(!url||!looksUrl(url)) return;
+      if(parts.length===1){ if(looksUrl(parts[0])) url=parts[0]; else name=parts[0]; }
+      else { const ui=parts.findIndex(looksUrl); if(ui<0){ name=parts[0]; desc=parts.slice(1).join(' '); } else { url=parts[ui]; const rest=parts.filter((_,i)=>i!==ui); name=rest[0]||''; desc=rest.slice(1).join(' '); } }
       out.push({name,url,desc});
     });
     return out;
   }
-  function runImport(){
+
+  // Minimal chat call to ARIA via the same Ollama Cloud proxy the app uses.
+  async function ariaComplete(messages){
+    const model=(window.APP_CONFIG&&window.APP_CONFIG.model)||'glm-4.6';
+    const res=await fetch('/api/ollama/v1/chat/completions',{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({ model, messages, stream:false, temperature:0.2 })
+    });
+    if(!res.ok) throw new Error('AI unavailable ('+res.status+')');
+    const data=await res.json();
+    return (data.choices&&data.choices[0]&&data.choices[0].message&&data.choices[0].message.content)||'';
+  }
+
+  // Ask ARIA to resolve URLs, categorize, and describe a batch of entries.
+  async function enrichWithAria(entries, forcedCat){
+    const list=entries.map((e,i)=>(i+1)+'. '+[e.name,e.url,e.desc].filter(Boolean).join(' — ')).join('\n');
+    const catRule = forcedCat
+      ? `Use exactly this category for every item: "${forcedCat}".`
+      : `Assign each item a single short category (1-2 words, Title Case), e.g. "Dev Tools", "News", "Design", "AI", "Reference", "Shopping", "Entertainment". Reuse the same wording for similar items.`;
+    const sys='You organize website bookmarks for a public directory. For EACH input line return an object with: '+
+      '"name" (clean human-readable site name), "url" (canonical homepage URL starting with https://), '+
+      '"category" (short), and "desc" (one concise sentence, max ~14 words, describing what the site is). '+
+      catRule+' If a URL is missing, infer the correct official homepage from the name. If you are unsure of a site, '+
+      'still give your best guess. Return ONLY a JSON array, no prose, no code fences.';
+    const out=await ariaComplete([{role:'system',content:sys},{role:'user',content:list}]);
+    let txt=out.trim().replace(/^```(?:json)?/i,'').replace(/```$/,'').trim();
+    const a=txt.indexOf('['), b=txt.lastIndexOf(']');
+    if(a>=0&&b>a) txt=txt.slice(a,b+1);
+    const arr=JSON.parse(txt);
+    if(!Array.isArray(arr)) throw new Error('bad shape');
+    return arr;
+  }
+
+  async function runImport(){
     if(!isAdmin)return;
-    const category=document.getElementById('imp-cat').value.trim();
-    const parsed=parseBookmarks(document.getElementById('imp-text').value||'');
-    if(!parsed.length){ document.getElementById('imp-note').textContent='No links found — paste one URL per line, or "Name | url | note".'; return; }
-    parsed.forEach(p=>{ const url=p.url; const nm=p.name || (hostOf(normalizeUrl(url))||url); sites.push({id:uid(),name:nm,url,desc:p.desc||'',category}); });
-    persist(); render(); closeImport();
+    const note=document.getElementById('imp-note');
+    const forcedCat=document.getElementById('imp-cat').value.trim();
+    const useAI=document.getElementById('imp-ai').checked;
+    const entries=parseEntries(document.getElementById('imp-text').value||'');
+    if(!entries.length){ note.style.color='var(--accent)'; note.textContent='Nothing to import — paste some links or site names first.'; return; }
+
+    const go=document.getElementById('imp-go'), cancel=document.getElementById('imp-cancel');
+    const lock=(on)=>{ go.disabled=on; cancel.disabled=on; };
+
+    let added=[];
+    if(useAI){
+      lock(true); note.style.color='var(--text-3)'; note.textContent='ARIA is finding pages, sorting and describing '+entries.length+' item'+(entries.length>1?'s':'')+'…';
+      try{
+        const enriched=await enrichWithAria(entries, forcedCat);
+        added=enriched.filter(e=>e&&(e.url||e.name)).map(e=>{
+          const url=(e.url||'').trim();
+          return { id:uid(), name:(e.name||'').trim()||(hostOf(normalizeUrl(url))||url), url, desc:(e.desc||'').trim(), category:(forcedCat||(e.category||'').trim()), image:siteIcon(url) };
+        }).filter(s=>s.url);
+        if(!added.length) throw new Error('no usable results');
+      }catch(err){
+        // Fall back to a plain import so the admin never loses their paste.
+        note.style.color='var(--accent)';
+        added=rawImport(entries, forcedCat);
+        lock(false);
+        if(!added.length){ note.textContent='ARIA couldn’t be reached and no valid links were found. Add URLs (not just names) or try again.'; return; }
+        sites.push(...added); persist(); render(); closeImport();
+        return;
+      }
+      lock(false);
+    } else {
+      added=rawImport(entries, forcedCat);
+      if(!added.length){ note.style.color='var(--accent)'; note.textContent='No valid links found — turn on ARIA to resolve names, or paste full URLs.'; return; }
+    }
+    sites.push(...added); persist(); render(); closeImport();
+  }
+
+  // Non-AI import: keep only entries that already have a usable URL.
+  function rawImport(entries, forcedCat){
+    return entries.filter(e=>e.url&&looksUrl(e.url)).map(e=>{
+      const url=e.url; return { id:uid(), name:e.name||(hostOf(normalizeUrl(url))||url), url, desc:e.desc||'', category:forcedCat||'', image:siteIcon(url) };
+    });
   }
 
   // ── Auth UI ────────────────────────────────────────────────────────────
