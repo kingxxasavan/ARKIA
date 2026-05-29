@@ -115,6 +115,14 @@
   .cat-head .cat-name{font-family:var(--serif);font-size:18px;color:var(--text-1)}
   .cat-count{font-size:11px;color:var(--text-3);background:var(--bg-card);border:1px solid var(--border);border-radius:20px;padding:2px 9px}
   .cat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px}
+  .cat-move{display:inline-flex;gap:4px;margin-left:8px}
+  .icon-btn.xs{width:24px;height:24px;font-size:11px;border-radius:7px}
+  .icon-btn[disabled]{opacity:.35;cursor:default}
+  /* Inline page-text editing (admin) */
+  body.editing [data-edit]{outline:1px dashed var(--accent);outline-offset:4px;border-radius:4px;cursor:text}
+  body.editing [data-edit]:hover{background:var(--accent-soft)}
+  #edit-bar{position:fixed;left:0;right:0;bottom:0;z-index:200;background:var(--bg-card);border-top:1px solid var(--border-md);padding:11px 16px;display:none;gap:10px;justify-content:center;align-items:center;flex-wrap:wrap;box-shadow:0 -6px 20px rgba(0,0,0,0.12)}
+  #edit-bar .hint{font-size:13px;color:var(--text-2)}
 
   .empty{text-align:center;color:var(--text-2);padding:40px 0 10px}
   .empty .big{font-family:var(--serif);font-size:22px;color:var(--text-1);margin-bottom:6px}
@@ -174,6 +182,7 @@
     <a class="brand" href="/"><div class="mark">◆</div><div class="brand-name js-brand-name">Cryptic Hub</div></a>
     <div class="nav-links">
       <span class="admin-chip" id="admin-chip"><span class="dot"></span>Admin</span>
+      <button class="btn ghost sm" id="edit-text-btn" onclick="toggleEditText()" style="display:none">Edit text</button>
       <a class="btn ghost" href="/app">Open ARIA</a>
       <button class="btn ghost sm" id="auth-btn" onclick="onAuthBtn()">Sign in</button>
       <button class="theme-btn" onclick="toggleTheme()" title="Toggle dark / light" aria-label="Toggle theme">
@@ -183,9 +192,9 @@
   </nav>
 
   <header class="hub-head">
-    <span class="eyebrow">Curated hub · powered by ARIA</span>
+    <span class="eyebrow" data-edit="eyebrow">Curated hub · powered by ARIA</span>
     <h1 class="js-brand-name">Cryptic <span class="accent">Hub</span></h1>
-    <p class="hub-sub">A calm, curated home for the websites and tools we trust — every link with a note on what it's for, one click away. Paired with <strong>ARIA</strong>, our personal AI assistant.</p>
+    <p class="hub-sub" data-edit="heroSub">A calm, curated home for the websites and tools we trust — every link with a note on what it's for, one click away. Paired with ARIA, our personal AI assistant.</p>
   </header>
 
   <!-- Who we are / what we do -->
@@ -194,27 +203,27 @@
       <div class="about-ic">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>
       </div>
-      <h3>Who we are</h3>
-      <p>A small, independent project by Savankumar Patel — building quiet, useful tools without the clutter.</p>
+      <h3 data-edit="whoH">Who we are</h3>
+      <p data-edit="whoP">A small, independent project by Savankumar Patel — building quiet, useful tools without the clutter.</p>
     </div>
     <div class="about-card reveal">
       <div class="about-ic">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M3 9h18M8 18v2M16 18v2"/></svg>
       </div>
-      <h3>What we do</h3>
-      <p>We curate a hand-picked directory of trusted sites and pair it with ARIA, an AI assistant with memory that follows you across devices.</p>
+      <h3 data-edit="whatH">What we do</h3>
+      <p data-edit="whatP">We curate a hand-picked directory of trusted sites and pair it with ARIA, an AI assistant with memory that follows you across devices.</p>
     </div>
     <div class="about-card reveal">
       <div class="about-ic">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l2.4 6.6L21 9l-5 4 1.6 7L12 16.8 6.4 20 8 13 3 9l6.6-.4z"/></svg>
       </div>
-      <h3>Why it's curated</h3>
-      <p>Only one verified admin can add or edit links, so the list stays trustworthy, signal-only, and free of noise.</p>
+      <h3 data-edit="whyH">Why it's curated</h3>
+      <p data-edit="whyP">Only one verified admin can add or edit links, so the list stays trustworthy, signal-only, and free of noise.</p>
     </div>
   </section>
 
   <div class="section-head reveal">
-    <h2>The directory</h2>
+    <h2 data-edit="dirH">The directory</h2>
     <div class="toolbar">
       <input id="search" class="search" placeholder="Search sites…" oninput="render()" autocomplete="off" />
       <button class="btn" id="import-btn" onclick="openImport()" style="display:none">&#8593; Import bookmarks</button>
@@ -227,7 +236,7 @@
   <datalist id="cat-list"></datalist>
 
   <div id="empty" class="empty" style="display:none">
-    <div class="big">Nothing here yet.</div>
+    <div class="big" data-edit="emptyBig">Nothing here yet.</div>
     <div id="empty-sub">The curator hasn't added any sites yet — check back soon.</div>
   </div>
 </div>
@@ -317,13 +326,21 @@
 
 <footer>
   <div><a href="/app" style="text-decoration:none;color:inherit">Open ARIA</a></div>
-  <div style="margin-top:8px">Created by <span class="by">Savankumar Patel</span></div>
+  <div style="margin-top:8px" data-edit="footerCredit">Created by Savankumar Patel</div>
 </footer>
+
+<!-- Admin: page-text editing bar -->
+<div id="edit-bar">
+  <span class="hint">Editing page text — click any heading or paragraph to rewrite it.</span>
+  <button class="btn" onclick="cancelEditText()">Cancel</button>
+  <button class="btn primary" onclick="saveText()">Save text</button>
+</div>
 
 <script>
   const ADMIN_EMAILS=['kingasd8970@gmail.com','fanegf837@gmail.com','kingfan837@gmail.com'];
   const LS={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
   function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+  function escAttr(s){return String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;')}
   function uid(){return Math.random().toString(36).slice(2,9)}
   function normalizeUrl(u){u=(u||'').trim();if(!u)return'';if(!/^https?:\/\//i.test(u))u='https://'+u;return u}
   function hostOf(u){try{return new URL(normalizeUrl(u)).host.replace(/^www\./,'')}catch(e){return u||''}}
@@ -333,6 +350,8 @@
   let isAdmin = false;
   let currentUser = null;
   let editingId = null;
+  let catOrder = [];        // admin-defined category order (keys; '' = uncategorized)
+  let editingText = false;  // inline page-text edit mode
 
   // Save: write to Firestore when admin; always cache locally for instant/offline render.
   function persist(){
@@ -377,21 +396,30 @@
       : "The curator hasn't added any sites yet — check back soon.";
     refreshCatList();
     grid.innerHTML='';
-    // Group by category (first-seen order); uncategorized sites go last.
-    const named=new Map(); const uncat=[];
-    filtered.forEach(s=>{ const c=(s.category||'').trim(); if(!c){ uncat.push(s); } else { if(!named.has(c)) named.set(c,[]); named.get(c).push(s); } });
+    // Group by category key ('' = uncategorized), then order by the admin's catOrder.
+    const groups=new Map();
+    filtered.forEach(s=>{ const key=(s.category||'').trim(); if(!groups.has(key)) groups.set(key,[]); groups.get(key).push(s); });
+    const keys=orderedCatKeys([...groups.keys()]);
+    const hasNamed=keys.some(k=>k!=='');
     let idx=0;
-    const addBlock=(label,items)=>{
+    const addBlock=(key,items,pos,total)=>{
+      const label = key==='' ? (hasNamed?'Uncategorized':'') : key;
       const block=document.createElement('div'); block.className='cat-block';
-      if(label){ const h=document.createElement('div'); h.className='cat-head'; h.innerHTML='<span class="cat-name">'+esc(label)+'</span><span class="cat-count">'+items.length+'</span>'; block.appendChild(h); }
+      if(label){
+        const h=document.createElement('div'); h.className='cat-head';
+        let mv='';
+        if(isAdmin) mv='<span class="cat-move">'+
+          '<button class="icon-btn xs" title="Move up" '+(pos===0?'disabled':'')+' onclick="moveCat(\''+escAttr(key)+'\',-1)">&#9650;</button>'+
+          '<button class="icon-btn xs" title="Move down" '+(pos===total-1?'disabled':'')+' onclick="moveCat(\''+escAttr(key)+'\',1)">&#9660;</button>'+
+          '</span>';
+        h.innerHTML='<span class="cat-name">'+esc(label)+'</span><span class="cat-count">'+items.length+'</span>'+mv;
+        block.appendChild(h);
+      }
       const row=document.createElement('div'); row.className='cat-grid';
       items.forEach(s=>row.appendChild(buildCard(s,idx++)));
       block.appendChild(row); grid.appendChild(block);
     };
-    // Uncategorized sites stay at the top (where existing ones were); named
-    // categories follow, so importing into categories never buries old entries.
-    if(uncat.length) addBlock(named.size?'Uncategorized':'', uncat);
-    named.forEach((items,label)=>addBlock(label,items));
+    keys.forEach((k,i)=>addBlock(k,groups.get(k),i,keys.length));
     if(isAdmin){
       const block=document.createElement('div'); block.className='cat-block';
       const row=document.createElement('div'); row.className='cat-grid';
@@ -577,16 +605,20 @@
     const chip=document.getElementById('admin-chip');
     const addBtn=document.getElementById('add-btn');
     const impBtn=document.getElementById('import-btn');
+    const edBtn=document.getElementById('edit-text-btn');
     if(currentUser){
       btn.textContent='Sign out';
       chip.style.display = isAdmin ? 'inline-flex' : 'none';
       addBtn.style.display = isAdmin ? 'inline-flex' : 'none';
       if(impBtn) impBtn.style.display = isAdmin ? 'inline-flex' : 'none';
+      if(edBtn) edBtn.style.display = isAdmin ? 'inline-flex' : 'none';
     } else {
       btn.textContent='Sign in';
       chip.style.display='none';
       addBtn.style.display='none';
       if(impBtn) impBtn.style.display='none';
+      if(edBtn) edBtn.style.display='none';
+      if(editingText) endEditText();
     }
   }
 
@@ -609,14 +641,67 @@
     const name=(c.hubName||'').trim()||'Cryptic Hub';
     document.title=name;
     document.querySelectorAll('.js-brand-name').forEach(el=>el.textContent=name);
-    const sub=(c.hubTagline||'').trim();
-    const subEl=document.querySelector('.hub-sub'); if(sub && subEl) subEl.textContent=sub;
     if(c.accent) document.documentElement.style.setProperty('--accent', c.accent);
     if(c.themeDefault && !LS.get('aria_theme_choice')){
       document.documentElement.setAttribute('data-theme', c.themeDefault==='dark'?'dark':'light');
       var ic=document.getElementById('theme-ic'); if(ic) ic.innerHTML=(c.themeDefault==='dark')?MOON:SUN;
     }
+    catOrder = Array.isArray(c.catOrder) ? c.catOrder.slice() : [];
+    // Don't clobber the admin's edits while they're actively editing.
+    if(!editingText){
+      const content=c.content||{};
+      document.querySelectorAll('[data-edit]').forEach(el=>{ const k=el.getAttribute('data-edit'); if(content[k]) el.textContent=content[k]; });
+      // Hero tagline: a custom override (heroSub) wins; otherwise fall back to the app panel's tagline.
+      const subEl=document.querySelector('.hub-sub');
+      if(subEl && !content.heroSub && (c.hubTagline||'').trim()) subEl.textContent=c.hubTagline.trim();
+      render();
+    }
     maybeShowAnnouncement();
+  }
+  // Merge a partial change into the shared config (admins only).
+  function saveConfigPartial(obj){
+    if(!(isAdmin && window.HUB_FB && window.HUB_FB.configured)) return;
+    window.HUB_FB.saveConfig(obj).catch(e=>{ console.error(e); alert('Could not save: '+(e&&e.message||e)); });
+  }
+
+  // ── Category order ───────────────────────────────────────────────────────
+  function orderedCatKeys(present){
+    const inOrder=(catOrder||[]).filter(k=>present.includes(k));
+    const rest=present.filter(k=>!inOrder.includes(k));
+    return inOrder.concat(rest);
+  }
+  function moveCat(key,dir){
+    if(!isAdmin)return;
+    const keys=[]; const seen=new Set();
+    sites.forEach(s=>{ const k=(s.category||'').trim(); if(!seen.has(k)){ seen.add(k); keys.push(k); } });
+    const ordered=orderedCatKeys(keys);
+    const i=ordered.indexOf(key), j=i+dir;
+    if(i<0||j<0||j>=ordered.length)return;
+    const t=ordered[i]; ordered[i]=ordered[j]; ordered[j]=t;
+    catOrder=ordered; render(); saveConfigPartial({catOrder});
+  }
+
+  // ── Inline page-text editing ─────────────────────────────────────────────
+  function toggleEditText(){ editingText ? cancelEditText() : startEditText(); }
+  function startEditText(){
+    if(!isAdmin)return; editingText=true;
+    document.body.classList.add('editing');
+    document.querySelectorAll('[data-edit]').forEach(el=>el.setAttribute('contenteditable','true'));
+    document.getElementById('edit-bar').style.display='flex';
+    document.getElementById('edit-text-btn').textContent='Editing…';
+  }
+  function endEditText(){
+    editingText=false;
+    document.body.classList.remove('editing');
+    document.querySelectorAll('[data-edit]').forEach(el=>el.setAttribute('contenteditable','false'));
+    document.getElementById('edit-bar').style.display='none';
+    document.getElementById('edit-text-btn').textContent='Edit text';
+  }
+  function cancelEditText(){ endEditText(); applyHubConfig(); }
+  function saveText(){
+    const content={};
+    document.querySelectorAll('[data-edit]').forEach(el=>{ const v=el.innerText.trim(); if(v) content[el.getAttribute('data-edit')]=v; });
+    endEditText(); saveConfigPartial({content});
   }
   function maybeShowAnnouncement(){
     const c=window.APP_CONFIG||{};
