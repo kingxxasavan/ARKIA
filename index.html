@@ -107,6 +107,14 @@
   .add-tile:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
   .add-tile .plus{font-size:26px;line-height:1}
 
+  /* Category grouping */
+  #grid{display:flex;flex-direction:column;gap:26px;padding:8px 0 10px}
+  .cat-block{display:flex;flex-direction:column;gap:12px}
+  .cat-head{display:flex;align-items:center;gap:10px}
+  .cat-head .cat-name{font-family:var(--serif);font-size:18px;color:var(--text-1)}
+  .cat-count{font-size:11px;color:var(--text-3);background:var(--bg-card);border:1px solid var(--border);border-radius:20px;padding:2px 9px}
+  .cat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px}
+
   .empty{text-align:center;color:var(--text-2);padding:40px 0 10px}
   .empty .big{font-family:var(--serif);font-size:22px;color:var(--text-1);margin-bottom:6px}
 
@@ -139,7 +147,7 @@
     .fx-glow,.site,.add-tile{animation:none}
   }
 
-  @media (max-width:520px){ .grid{grid-template-columns:1fr} }
+  @media (max-width:520px){ .grid,.cat-grid{grid-template-columns:1fr} }
 </style>
 <script>
   (function(){ try{ var t=localStorage.getItem('aria_theme')||'dark'; document.documentElement.setAttribute('data-theme', t==='dark'?'dark':'light'); }catch(e){ document.documentElement.setAttribute('data-theme','dark'); } })();
@@ -206,12 +214,14 @@
     <h2>The directory</h2>
     <div class="toolbar">
       <input id="search" class="search" placeholder="Search sites…" oninput="render()" autocomplete="off" />
+      <button class="btn" id="import-btn" onclick="openImport()" style="display:none">&#8593; Import bookmarks</button>
       <button class="btn primary" id="add-btn" onclick="openAdd()" style="display:none">+ Add site</button>
       <span class="count" id="count"></span>
     </div>
   </div>
 
-  <section id="grid" class="grid"></section>
+  <section id="grid"></section>
+  <datalist id="cat-list"></datalist>
 
   <div id="empty" class="empty" style="display:none">
     <div class="big">Nothing here yet.</div>
@@ -232,12 +242,37 @@
       <input id="f-url" type="text" placeholder="github.com" />
     </div>
     <div class="field">
+      <label>Category</label>
+      <input id="f-cat" type="text" list="cat-list" placeholder="e.g. Tools, Reading, Fun" />
+    </div>
+    <div class="field">
       <label>What it does</label>
       <textarea id="f-desc" rows="2" placeholder="Short note about this site…"></textarea>
     </div>
     <div class="modal-actions">
       <button class="btn" onclick="closeModal()">Cancel</button>
       <button class="btn primary" id="save-btn" onclick="saveSite()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Bulk import bookmarks modal (admin only) -->
+<div id="import-back" class="modal-back" onclick="if(event.target===this)closeImport()">
+  <div class="modal">
+    <div class="modal-title">Import bookmarks</div>
+    <div class="modal-note">Paste one link per line. Each line can be just a <code>url</code>, or <code>Name | url | short note</code>. Exported browser-bookmark HTML works too. They'll all land in the category below — you can edit any of them afterwards.</div>
+    <div class="field">
+      <label>Category for these</label>
+      <input id="imp-cat" type="text" list="cat-list" placeholder="e.g. Reading (leave blank for none)" />
+    </div>
+    <div class="field">
+      <label>Links</label>
+      <textarea id="imp-text" rows="8" placeholder="https://news.ycombinator.com&#10;GitHub | github.com | code hosting&#10;arxiv.org | papers"></textarea>
+    </div>
+    <div class="modal-note" id="imp-note" style="color:var(--accent)"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeImport()">Cancel</button>
+      <button class="btn primary" onclick="runImport()">Add links</button>
     </div>
   </div>
 </div>
@@ -300,63 +335,116 @@
   }
 
   // ── Render ─────────────────────────────────────────────────────────────
+  function buildCard(s,i){
+    const url=normalizeUrl(s.url);
+    const letter=(((s.name||'?').trim()[0])||'?').toUpperCase();
+    const card=document.createElement('div'); card.className='site'; card.style.animationDelay=(Math.min(i,12)*0.04)+'s';
+    let actions='<a class="btn primary sm" href="'+esc(url)+'" target="_blank" rel="noopener">Open &#8599;</a>';
+    if(isAdmin){
+      actions+='<button class="icon-btn" title="Edit" onclick="openEdit(\''+s.id+'\')">&#9998;</button>'+
+               '<button class="icon-btn danger" title="Remove" onclick="removeSite(\''+s.id+'\')">&#10005;</button>';
+    }
+    card.innerHTML=
+      '<div class="site-top">'+
+        '<div class="site-av">'+esc(letter)+'</div>'+
+        '<div class="site-meta">'+
+          '<div class="site-name">'+esc(s.name||'Untitled')+'</div>'+
+          '<div class="site-host">'+esc(hostOf(url)||'—')+'</div>'+
+        '</div>'+
+      '</div>'+
+      '<div class="site-desc">'+esc(s.desc||'')+'</div>'+
+      '<div class="site-actions">'+actions+'</div>';
+    return card;
+  }
   function render(){
     const grid=document.getElementById('grid');
     const q=(document.getElementById('search').value||'').toLowerCase().trim();
-    const filtered=sites.filter(s=>!q || ((s.name||'')+' '+(s.desc||'')+' '+(s.url||'')).toLowerCase().includes(q));
+    const filtered=sites.filter(s=>!q || ((s.name||'')+' '+(s.desc||'')+' '+(s.url||'')+' '+(s.category||'')).toLowerCase().includes(q));
     document.getElementById('count').textContent = sites.length ? (sites.length+' site'+(sites.length>1?'s':'')) : '';
     document.getElementById('empty').style.display = sites.length ? 'none' : 'block';
     document.getElementById('empty-sub').textContent = isAdmin
       ? 'Add your first website — a name, its link, and what it does.'
       : "The curator hasn't added any sites yet — check back soon.";
+    refreshCatList();
     grid.innerHTML='';
-    filtered.forEach((s,i)=>{
-      const url=normalizeUrl(s.url);
-      const letter=(((s.name||'?').trim()[0])||'?').toUpperCase();
-      const card=document.createElement('div'); card.className='site'; card.style.animationDelay=(Math.min(i,12)*0.04)+'s';
-      let actions='<a class="btn primary sm" href="'+esc(url)+'" target="_blank" rel="noopener">Open &#8599;</a>';
-      if(isAdmin){
-        actions+='<button class="icon-btn" title="Edit" onclick="openEdit(\''+s.id+'\')">&#9998;</button>'+
-                 '<button class="icon-btn danger" title="Remove" onclick="removeSite(\''+s.id+'\')">&#10005;</button>';
-      }
-      card.innerHTML=
-        '<div class="site-top">'+
-          '<div class="site-av">'+esc(letter)+'</div>'+
-          '<div class="site-meta">'+
-            '<div class="site-name">'+esc(s.name||'Untitled')+'</div>'+
-            '<div class="site-host">'+esc(hostOf(url)||'—')+'</div>'+
-          '</div>'+
-        '</div>'+
-        '<div class="site-desc">'+esc(s.desc||'')+'</div>'+
-        '<div class="site-actions">'+actions+'</div>';
-      grid.appendChild(card);
-    });
+    // Group by category (first-seen order); uncategorized sites go last.
+    const named=new Map(); const uncat=[];
+    filtered.forEach(s=>{ const c=(s.category||'').trim(); if(!c){ uncat.push(s); } else { if(!named.has(c)) named.set(c,[]); named.get(c).push(s); } });
+    let idx=0;
+    const addBlock=(label,items)=>{
+      const block=document.createElement('div'); block.className='cat-block';
+      if(label){ const h=document.createElement('div'); h.className='cat-head'; h.innerHTML='<span class="cat-name">'+esc(label)+'</span><span class="cat-count">'+items.length+'</span>'; block.appendChild(h); }
+      const row=document.createElement('div'); row.className='cat-grid';
+      items.forEach(s=>row.appendChild(buildCard(s,idx++)));
+      block.appendChild(row); grid.appendChild(block);
+    };
+    named.forEach((items,label)=>addBlock(label,items));
+    if(uncat.length) addBlock(named.size?'Other':'', uncat);
     if(isAdmin){
+      const block=document.createElement('div'); block.className='cat-block';
+      const row=document.createElement('div'); row.className='cat-grid';
       const add=document.createElement('div'); add.className='add-tile'; add.onclick=openAdd;
-      add.style.animationDelay=(Math.min(filtered.length,12)*0.04)+'s';
       add.innerHTML='<div class="plus">+</div><div>Add site</div>';
-      grid.appendChild(add);
+      row.appendChild(add); block.appendChild(row); grid.appendChild(block);
     }
+  }
+  function refreshCatList(){
+    const cats=[...new Set(sites.map(s=>(s.category||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
+    const dl=document.getElementById('cat-list'); if(dl) dl.innerHTML=cats.map(c=>'<option value="'+esc(c)+'"></option>').join('');
   }
 
   // ── Add / edit ─────────────────────────────────────────────────────────
   function showModal(){ document.getElementById('modal-back').classList.add('show'); setTimeout(()=>document.getElementById('f-name').focus(),50); }
   function closeModal(){ document.getElementById('modal-back').classList.remove('show'); }
-  function setFields(n,u,d){ document.getElementById('f-name').value=n||''; document.getElementById('f-url').value=u||''; document.getElementById('f-desc').value=d||''; }
-  function openAdd(){ if(!isAdmin)return; editingId=null; document.getElementById('modal-title').textContent='Add a site'; setFields('','',''); showModal(); }
-  function openEdit(id){ if(!isAdmin)return; const s=sites.find(x=>x.id===id); if(!s)return; editingId=id; document.getElementById('modal-title').textContent='Edit site'; setFields(s.name,s.url,s.desc); showModal(); }
+  function setFields(n,u,d,c){ document.getElementById('f-name').value=n||''; document.getElementById('f-url').value=u||''; document.getElementById('f-desc').value=d||''; document.getElementById('f-cat').value=c||''; }
+  function openAdd(){ if(!isAdmin)return; editingId=null; document.getElementById('modal-title').textContent='Add a site'; setFields('','','',''); showModal(); }
+  function openEdit(id){ if(!isAdmin)return; const s=sites.find(x=>x.id===id); if(!s)return; editingId=id; document.getElementById('modal-title').textContent='Edit site'; setFields(s.name,s.url,s.desc,s.category); showModal(); }
   function saveSite(){
     if(!isAdmin)return;
     const name=document.getElementById('f-name').value.trim();
     const url=document.getElementById('f-url').value.trim();
     const desc=document.getElementById('f-desc').value.trim();
+    const category=document.getElementById('f-cat').value.trim();
     if(!name){ document.getElementById('f-name').focus(); return; }
     if(!url){ document.getElementById('f-url').focus(); return; }
-    if(editingId){ const s=sites.find(x=>x.id===editingId); if(s){ s.name=name; s.url=url; s.desc=desc; } }
-    else { sites.push({id:uid(),name,url,desc}); }
+    if(editingId){ const s=sites.find(x=>x.id===editingId); if(s){ s.name=name; s.url=url; s.desc=desc; s.category=category; } }
+    else { sites.push({id:uid(),name,url,desc,category}); }
     persist(); render(); closeModal();
   }
   function removeSite(id){ if(!isAdmin)return; if(confirm('Remove this site from the hub?')){ sites=sites.filter(s=>s.id!==id); persist(); render(); } }
+
+  // ── Bulk import bookmarks ───────────────────────────────────────────────
+  function openImport(){ if(!isAdmin)return; document.getElementById('imp-cat').value=''; document.getElementById('imp-text').value=''; document.getElementById('imp-note').textContent=''; document.getElementById('import-back').classList.add('show'); setTimeout(()=>document.getElementById('imp-cat').focus(),50); }
+  function closeImport(){ document.getElementById('import-back').classList.remove('show'); }
+  const looksUrl=s=>/^https?:\/\//i.test(s)||/^[\w-]+(\.[\w-]+)+(\/|$|\?)/i.test(s);
+  function parseBookmarks(text){
+    const out=[];
+    // Exported browser bookmarks (Netscape HTML): <A HREF="url">Name</A>
+    const htmlRe=/<a\b[^>]*href\s*=\s*["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi;
+    let m, isHtml=false;
+    while((m=htmlRe.exec(text))){ isHtml=true; const url=m[1].trim(); const name=m[2].replace(/<[^>]+>/g,'').trim(); if(url&&!/^javascript:/i.test(url)) out.push({name,url,desc:''}); }
+    if(isHtml) return out;
+    // Otherwise one entry per line: "url" | "Name | url | note" | "Name <tab> url"
+    text.split(/\r?\n/).forEach(line=>{
+      const raw=line.trim(); if(!raw) return;
+      let parts = raw.includes('|') ? raw.split('|') : (raw.indexOf('\t')>=0 ? raw.split('\t') : [raw]);
+      parts=parts.map(p=>p.trim()).filter(Boolean);
+      let name='',url='',desc='';
+      if(parts.length===1){ url=parts[0]; }
+      else { const ui=parts.findIndex(looksUrl); if(ui<0){ name=parts[0]; url=parts[1]; desc=parts.slice(2).join(' '); } else { url=parts[ui]; const rest=parts.filter((_,i)=>i!==ui); name=rest[0]||''; desc=rest.slice(1).join(' '); } }
+      if(!url||!looksUrl(url)) return;
+      out.push({name,url,desc});
+    });
+    return out;
+  }
+  function runImport(){
+    if(!isAdmin)return;
+    const category=document.getElementById('imp-cat').value.trim();
+    const parsed=parseBookmarks(document.getElementById('imp-text').value||'');
+    if(!parsed.length){ document.getElementById('imp-note').textContent='No links found — paste one URL per line, or "Name | url | note".'; return; }
+    parsed.forEach(p=>{ const url=p.url; const nm=p.name || (hostOf(normalizeUrl(url))||url); sites.push({id:uid(),name:nm,url,desc:p.desc||'',category}); });
+    persist(); render(); closeImport();
+  }
 
   // ── Auth UI ────────────────────────────────────────────────────────────
   function onAuthBtn(){ if(currentUser){ if(window.HUB_FB&&window.HUB_FB.configured) window.HUB_FB.signOut().catch(()=>{}); } else { openLogin(); } }
@@ -386,14 +474,17 @@
     const btn=document.getElementById('auth-btn');
     const chip=document.getElementById('admin-chip');
     const addBtn=document.getElementById('add-btn');
+    const impBtn=document.getElementById('import-btn');
     if(currentUser){
       btn.textContent='Sign out';
       chip.style.display = isAdmin ? 'inline-flex' : 'none';
       addBtn.style.display = isAdmin ? 'inline-flex' : 'none';
+      if(impBtn) impBtn.style.display = isAdmin ? 'inline-flex' : 'none';
     } else {
       btn.textContent='Sign in';
       chip.style.display='none';
       addBtn.style.display='none';
+      if(impBtn) impBtn.style.display='none';
     }
   }
 
