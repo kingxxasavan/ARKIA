@@ -1250,10 +1250,16 @@ function saveAdminConfig(){
   const data=readAdminForm();
   // Bump the announcement version when the text changes or it's newly turned on, so users see it again.
   data.annUpdated = (data.annText!==(prev.annText||'') || (data.annEnabled && !prev.annEnabled)) ? Date.now() : (prev.annUpdated||0);
-  const btn=document.getElementById('adm-save'); if(btn){ btn.disabled=true; btn.textContent='Publishing…'; }
-  window.ARIA_FB.saveConfig(data)
-    .then(()=>{ admPreviewOn=false; admPreview=null; updateAdminBar(); if(btn){ btn.textContent='Pushed ✓'; setTimeout(()=>{ btn.textContent='Push live'; btn.disabled=false; },1200); } })
-    .catch(e=>{ if(btn){ btn.textContent='Push live'; btn.disabled=false; } showToast('Publish failed: '+(e&&e.message||e)); });
+  const btn=document.getElementById('adm-save');
+  const reset=()=>{ if(btn){ btn.disabled=false; btn.textContent='Push live'; } };
+  if(btn){ btn.disabled=true; btn.textContent='Publishing…'; }
+  let done=false;
+  const finish=(fn)=>{ if(done)return; done=true; clearTimeout(wd); fn(); };
+  const wd=setTimeout(()=>finish(()=>{ reset(); showToast('Publishing timed out — check your connection / sign-in and try again.'); }),20000);
+  Promise.resolve()
+    .then(()=>window.ARIA_FB.saveConfig(JSON.parse(JSON.stringify(data))))
+    .then(()=>finish(()=>{ admPreviewOn=false; admPreview=null; updateAdminBar(); if(btn){ btn.textContent='Pushed ✓'; setTimeout(()=>{ btn.textContent='Push live'; btn.disabled=false; },1200); } }))
+    .catch(e=>finish(()=>{ reset(); console.error('Publish failed:',e); showToast('Publish failed: '+((e&&e.code)==='permission-denied'?'no permission (check Firestore rules + admin email).':((e&&e.message)||e))); }));
 }
 function maybeShowAnnouncement(c, force){
   c = c || effectiveConfig();

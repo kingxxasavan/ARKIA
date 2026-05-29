@@ -399,23 +399,38 @@
   }
   function pushChanges(){
     if(!isAdmin || !dirty) return;
-    if(!(window.HUB_FB && window.HUB_FB.configured)){ alert('Sign-in/cloud unavailable — can’t publish right now.'); return; }
-    const bar=document.getElementById('draft-bar'); const pushBtn=document.getElementById('push-btn');
+    const fb=window.HUB_FB;
+    if(!(fb && fb.configured && typeof fb.saveSites==='function' && typeof fb.saveConfig==='function')){
+      alert('Publishing isn’t ready — reload the page and make sure you’re signed in as an admin.'); return;
+    }
+    const pushBtn=document.getElementById('push-btn');
+    const reset=()=>{ if(pushBtn){ pushBtn.disabled=false; pushBtn.textContent='Push live'; } };
     if(pushBtn){ pushBtn.disabled=true; pushBtn.textContent='Publishing…'; }
-    Promise.all([
-      window.HUB_FB.saveSites(sites),
-      window.HUB_FB.saveConfig({ catOrder, content }),
-    ]).then(()=>{
-      dirty=false; LS.rm('cryptic_hub_draft');
-      LS.set('cryptic_hub_sites', JSON.stringify(sites));
-      published = { sites: sites.slice(), catOrder: catOrder.slice(), content: Object.assign({}, content) };
-      if(pushBtn){ pushBtn.disabled=false; pushBtn.textContent='Push live'; }
-      updateDraftBar();
-    }).catch(e=>{
-      console.error(e);
-      if(pushBtn){ pushBtn.disabled=false; pushBtn.textContent='Push live'; }
-      alert('Publish failed — your changes are still saved as a draft. '+(e&&e.message||e));
-    });
+    // Drop any undefined/function values — Firestore rejects them (sometimes synchronously, which would hang the button).
+    const cleanSites = JSON.parse(JSON.stringify(sites));
+    const cleanCfg   = JSON.parse(JSON.stringify({ catOrder, content }));
+    let done=false;
+    const finish=(fn)=>{ if(done) return; done=true; clearTimeout(watchdog); fn(); };
+    // Never leave the button stuck on "Publishing…" if the request hangs (e.g. offline).
+    const watchdog=setTimeout(()=>finish(()=>{ reset(); alert('Publishing timed out — check your connection and that you’re signed in as an admin, then try again. Your draft is safe.'); }), 20000);
+    // Wrap in Promise.resolve().then(...) so a synchronous throw becomes a rejection we can catch.
+    Promise.resolve()
+      .then(()=>Promise.all([ fb.saveSites(cleanSites), fb.saveConfig(cleanCfg) ]))
+      .then(()=>finish(()=>{
+        dirty=false; LS.rm('cryptic_hub_draft');
+        LS.set('cryptic_hub_sites', JSON.stringify(cleanSites));
+        published = { sites: cleanSites.slice(), catOrder: (cleanCfg.catOrder||[]).slice(), content: Object.assign({}, cleanCfg.content||{}) };
+        if(pushBtn){ pushBtn.disabled=false; pushBtn.textContent='Pushed ✓'; setTimeout(()=>{ pushBtn.textContent='Push live'; },1400); }
+        updateDraftBar();
+      }))
+      .catch(e=>finish(()=>{
+        console.error('Publish failed:', e);
+        reset();
+        const msg=(e&&e.code)==='permission-denied'
+          ? 'Publish failed: your account doesn’t have permission. Check the Firestore rules include your admin email for hub/ and config/.'
+          : 'Publish failed: '+((e&&e.message)||e)+'\nYour draft is safe.';
+        alert(msg);
+      }));
   }
   function togglePreview(){
     if(!isAdmin)return;
