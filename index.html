@@ -121,8 +121,11 @@
   /* Inline page-text editing (admin) */
   body.editing [data-edit]{outline:1px dashed var(--accent);outline-offset:4px;border-radius:4px;cursor:text}
   body.editing [data-edit]:hover{background:var(--accent-soft)}
-  #edit-bar{position:fixed;left:0;right:0;bottom:0;z-index:200;background:var(--bg-card);border-top:1px solid var(--border-md);padding:11px 16px;display:none;gap:10px;justify-content:center;align-items:center;flex-wrap:wrap;box-shadow:0 -6px 20px rgba(0,0,0,0.12)}
-  #edit-bar .hint{font-size:13px;color:var(--text-2)}
+  #edit-bar,#draft-bar{position:fixed;left:0;right:0;bottom:0;z-index:200;background:var(--bg-card);border-top:1px solid var(--border-md);padding:11px 16px;display:none;gap:10px;justify-content:center;align-items:center;flex-wrap:wrap;box-shadow:0 -6px 20px rgba(0,0,0,0.12)}
+  #edit-bar .hint,#draft-bar .hint{font-size:13px;color:var(--text-2)}
+  .cat-grip{cursor:grab;color:var(--text-3);font-size:14px;margin-right:2px;user-select:none}
+  .cat-block.dragging{opacity:.5}
+  .cat-block[draggable="true"] .cat-head{cursor:grab}
 
   .empty{text-align:center;color:var(--text-2);padding:40px 0 10px}
   .empty .big{font-family:var(--serif);font-size:22px;color:var(--text-1);margin-bottom:6px}
@@ -182,6 +185,7 @@
     <a class="brand" href="/"><div class="mark">◆</div><div class="brand-name js-brand-name">Cryptic Hub</div></a>
     <div class="nav-links">
       <span class="admin-chip" id="admin-chip"><span class="dot"></span>Admin</span>
+      <button class="btn ghost sm" id="preview-btn" onclick="togglePreview()" style="display:none">Preview</button>
       <button class="btn ghost sm" id="edit-text-btn" onclick="toggleEditText()" style="display:none">Edit text</button>
       <a class="btn ghost" href="/app">Open ARIA</a>
       <button class="btn ghost sm" id="auth-btn" onclick="onAuthBtn()">Sign in</button>
@@ -331,9 +335,17 @@
 
 <!-- Admin: page-text editing bar -->
 <div id="edit-bar">
-  <span class="hint">Editing page text — click any heading or paragraph to rewrite it.</span>
+  <span class="hint">Editing page text — click any heading or paragraph to rewrite it. Saved as a draft until you push it live.</span>
   <button class="btn" onclick="cancelEditText()">Cancel</button>
-  <button class="btn primary" onclick="saveText()">Save text</button>
+  <button class="btn primary" onclick="saveText()">Save draft</button>
+</div>
+
+<!-- Admin: draft / preview / publish bar -->
+<div id="draft-bar">
+  <span class="hint" id="draft-info"></span>
+  <button class="btn" id="dbar-preview" onclick="togglePreview()">Preview</button>
+  <button class="btn" id="discard-btn" onclick="discardChanges()">Discard</button>
+  <button class="btn primary" id="push-btn" onclick="pushChanges()">Push live</button>
 </div>
 
 <script>
@@ -351,14 +363,78 @@
   let currentUser = null;
   let editingId = null;
   let catOrder = [];        // admin-defined category order (keys; '' = uncategorized)
+  let content = {};         // page-text overrides (draft)
   let editingText = false;  // inline page-text edit mode
+  let previewing = false;   // admin viewing the page as a visitor
+  let dirty = false;        // unpublished draft changes exist
+  let published = { sites: [], catOrder: [], content: {} }; // last live data from Firestore
+  let textDefaults = {};    // original text of each [data-edit] element
+  // Admin controls are active only when signed in as admin AND not previewing.
+  function adminActive(){ return isAdmin && !previewing; }
 
-  // Save: write to Firestore when admin; always cache locally for instant/offline render.
-  function persist(){
-    LS.set('cryptic_hub_sites', JSON.stringify(sites));
-    if(isAdmin && window.HUB_FB && window.HUB_FB.configured){
-      window.HUB_FB.saveSites(sites).catch(e=>{ console.error(e); alert('Could not save to the cloud: '+(e&&e.message||e)); });
-    }
+  // ── Draft model ──────────────────────────────────────────────────────────
+  // Admin edits are kept as a LOCAL draft and only go live when "Push live" is
+  // pressed — so a mistake never reaches visitors or breaks the live site.
+  // Non-admins never stage; they always see the published Firestore data.
+  function stage(){
+    dirty = true;
+    LS.set('cryptic_hub_draft', JSON.stringify({ sites, catOrder, content }));
+    applyContentText(); render(); updateDraftBar();
+  }
+  // Back-compat alias used by the add/edit/import/remove actions.
+  function persist(){ stage(); }
+
+  function loadDraftLocal(){
+    try{ const d=JSON.parse(LS.get('cryptic_hub_draft')||'null'); if(d&&Array.isArray(d.sites)){ sites=d.sites; catOrder=Array.isArray(d.catOrder)?d.catOrder:[]; content=d.content||{}; dirty=true; return true; } }catch(e){}
+    return false;
+  }
+  function discardChanges(){
+    if(!isAdmin)return;
+    if(dirty && !confirm('Discard all unpublished changes and revert to the live version?')) return;
+    sites = published.sites.slice();
+    catOrder = (published.catOrder||[]).slice();
+    content = Object.assign({}, published.content||{});
+    dirty = false; LS.rm('cryptic_hub_draft');
+    applyContentText(); render(); updateDraftBar();
+  }
+  function pushChanges(){
+    if(!isAdmin || !dirty) return;
+    if(!(window.HUB_FB && window.HUB_FB.configured)){ alert('Sign-in/cloud unavailable — can’t publish right now.'); return; }
+    const bar=document.getElementById('draft-bar'); const pushBtn=document.getElementById('push-btn');
+    if(pushBtn){ pushBtn.disabled=true; pushBtn.textContent='Publishing…'; }
+    Promise.all([
+      window.HUB_FB.saveSites(sites),
+      window.HUB_FB.saveConfig({ catOrder, content }),
+    ]).then(()=>{
+      dirty=false; LS.rm('cryptic_hub_draft');
+      LS.set('cryptic_hub_sites', JSON.stringify(sites));
+      published = { sites: sites.slice(), catOrder: catOrder.slice(), content: Object.assign({}, content) };
+      if(pushBtn){ pushBtn.disabled=false; pushBtn.textContent='Push live'; }
+      updateDraftBar();
+    }).catch(e=>{
+      console.error(e);
+      if(pushBtn){ pushBtn.disabled=false; pushBtn.textContent='Push live'; }
+      alert('Publish failed — your changes are still saved as a draft. '+(e&&e.message||e));
+    });
+  }
+  function togglePreview(){
+    if(!isAdmin)return;
+    previewing=!previewing;
+    document.body.classList.toggle('previewing', previewing);
+    ['preview-btn','dbar-preview'].forEach(id=>{ const b=document.getElementById(id); if(b) b.textContent=previewing?'Exit preview':'Preview'; });
+    if(previewing && editingText) endEditText();
+    updateAuthUI(); render(); updateDraftBar();
+  }
+  function updateDraftBar(){
+    const bar=document.getElementById('draft-bar'); if(!bar) return;
+    const show = isAdmin && (dirty || previewing);
+    bar.style.display = show ? 'flex' : 'none';
+    const info=document.getElementById('draft-info');
+    if(info) info.textContent = previewing
+      ? 'Preview — this is what visitors see.' + (dirty?' You have unpublished changes.':'')
+      : 'You have unpublished changes — preview, then push them live.';
+    const dEls=[document.getElementById('discard-btn'), document.getElementById('push-btn')];
+    dEls.forEach(b=>{ if(b) b.style.display = dirty ? 'inline-flex' : 'none'; });
   }
 
   // ── Render ─────────────────────────────────────────────────────────────
@@ -368,7 +444,7 @@
     const img=(s.image||siteIcon(url));
     const card=document.createElement('div'); card.className='site'; card.style.animationDelay=(Math.min(i,12)*0.04)+'s';
     let actions='<a class="btn primary sm" href="'+esc(url)+'" target="_blank" rel="noopener">Open &#8599;</a>';
-    if(isAdmin){
+    if(adminActive()){
       actions+='<button class="icon-btn" title="Edit" onclick="openEdit(\''+s.id+'\')">&#9998;</button>'+
                '<button class="icon-btn danger" title="Remove" onclick="removeSite(\''+s.id+'\')">&#10005;</button>';
     }
@@ -391,7 +467,7 @@
     const filtered=sites.filter(s=>!q || ((s.name||'')+' '+(s.desc||'')+' '+(s.url||'')+' '+(s.category||'')).toLowerCase().includes(q));
     document.getElementById('count').textContent = sites.length ? (sites.length+' site'+(sites.length>1?'s':'')) : '';
     document.getElementById('empty').style.display = sites.length ? 'none' : 'block';
-    document.getElementById('empty-sub').textContent = isAdmin
+    document.getElementById('empty-sub').textContent = adminActive()
       ? 'Add your first website — a name, its link, and what it does.'
       : "The curator hasn't added any sites yet — check back soon.";
     refreshCatList();
@@ -408,19 +484,27 @@
       if(label){
         const h=document.createElement('div'); h.className='cat-head';
         let mv='';
-        if(isAdmin) mv='<span class="cat-move">'+
+        if(adminActive()) mv='<span class="cat-move">'+
+          '<button class="icon-btn xs" title="Rename category" onclick="renameCat(\''+escAttr(key)+'\')">&#9998;</button>'+
           '<button class="icon-btn xs" title="Move up" '+(pos===0?'disabled':'')+' onclick="moveCat(\''+escAttr(key)+'\',-1)">&#9650;</button>'+
           '<button class="icon-btn xs" title="Move down" '+(pos===total-1?'disabled':'')+' onclick="moveCat(\''+escAttr(key)+'\',1)">&#9660;</button>'+
           '</span>';
-        h.innerHTML='<span class="cat-name">'+esc(label)+'</span><span class="cat-count">'+items.length+'</span>'+mv;
+        h.innerHTML=(adminActive()?'<span class="cat-grip" title="Drag to reorder">⠿</span>':'')+'<span class="cat-name">'+esc(label)+'</span><span class="cat-count">'+items.length+'</span>'+mv;
         block.appendChild(h);
+        if(adminActive()){
+          block.draggable=true;
+          block.addEventListener('dragstart',e=>{ dragKey=key; block.classList.add('dragging'); e.dataTransfer.effectAllowed='move'; });
+          block.addEventListener('dragend',()=>{ dragKey=null; block.classList.remove('dragging'); });
+          block.addEventListener('dragover',e=>{ if(dragKey!==null){ e.preventDefault(); e.dataTransfer.dropEffect='move'; } });
+          block.addEventListener('drop',e=>{ e.preventDefault(); if(dragKey!==null && dragKey!==key){ reorderCats(dragKey,key); } });
+        }
       }
       const row=document.createElement('div'); row.className='cat-grid';
       items.forEach(s=>row.appendChild(buildCard(s,idx++)));
       block.appendChild(row); grid.appendChild(block);
     };
     keys.forEach((k,i)=>addBlock(k,groups.get(k),i,keys.length));
-    if(isAdmin){
+    if(adminActive()){
       const block=document.createElement('div'); block.className='cat-block';
       const row=document.createElement('div'); row.className='cat-grid';
       const add=document.createElement('div'); add.className='add-tile'; add.onclick=openAdd;
@@ -606,18 +690,21 @@
     const addBtn=document.getElementById('add-btn');
     const impBtn=document.getElementById('import-btn');
     const edBtn=document.getElementById('edit-text-btn');
+    const pvBtn=document.getElementById('preview-btn');
     if(currentUser){
       btn.textContent='Sign out';
       chip.style.display = isAdmin ? 'inline-flex' : 'none';
-      addBtn.style.display = isAdmin ? 'inline-flex' : 'none';
-      if(impBtn) impBtn.style.display = isAdmin ? 'inline-flex' : 'none';
-      if(edBtn) edBtn.style.display = isAdmin ? 'inline-flex' : 'none';
+      addBtn.style.display = adminActive() ? 'inline-flex' : 'none';
+      if(impBtn) impBtn.style.display = adminActive() ? 'inline-flex' : 'none';
+      if(edBtn) edBtn.style.display = adminActive() ? 'inline-flex' : 'none';
+      if(pvBtn) pvBtn.style.display = isAdmin ? 'inline-flex' : 'none';
     } else {
       btn.textContent='Sign in';
       chip.style.display='none';
       addBtn.style.display='none';
       if(impBtn) impBtn.style.display='none';
       if(edBtn) edBtn.style.display='none';
+      if(pvBtn) pvBtn.style.display='none';
       if(editingText) endEditText();
     }
   }
@@ -626,11 +713,22 @@
   window.onHubUser = function(user){
     currentUser = user || null;
     isAdmin = !!(user && user.email && ADMIN_EMAILS.includes(user.email.toLowerCase()));
-    updateAuthUI();
-    render();
+    if(isAdmin){
+      // Restore an unfinished local draft, if any.
+      if(!dirty) loadDraftLocal();
+    } else {
+      // Visitors never keep a draft or preview state.
+      previewing=false; document.body.classList.remove('previewing');
+      if(dirty){ dirty=false; sites=published.sites.slice(); catOrder=(published.catOrder||[]).slice(); content=Object.assign({},published.content||{}); }
+    }
+    updateAuthUI(); applyContentText(); render(); updateDraftBar();
   };
   window.onHubSites = function(remote){
-    if(Array.isArray(remote)){ sites = remote; LS.set('cryptic_hub_sites', JSON.stringify(sites)); render(); }
+    if(!Array.isArray(remote)) return;
+    published.sites = remote;
+    LS.set('cryptic_hub_sites', JSON.stringify(remote));
+    // Don't overwrite a draft the admin is still working on.
+    if(!dirty){ sites = remote; render(); }
   };
 
   // Admin-controlled config (brand, tagline, theme, announcement) — set from the chat app, applied here.
@@ -646,15 +744,14 @@
       document.documentElement.setAttribute('data-theme', c.themeDefault==='dark'?'dark':'light');
       var ic=document.getElementById('theme-ic'); if(ic) ic.innerHTML=(c.themeDefault==='dark')?MOON:SUN;
     }
-    catOrder = Array.isArray(c.catOrder) ? c.catOrder.slice() : [];
-    // Don't clobber the admin's edits while they're actively editing.
-    if(!editingText){
-      const content=c.content||{};
-      document.querySelectorAll('[data-edit]').forEach(el=>{ const k=el.getAttribute('data-edit'); if(content[k]) el.textContent=content[k]; });
-      // Hero tagline: a custom override (heroSub) wins; otherwise fall back to the app panel's tagline.
-      const subEl=document.querySelector('.hub-sub');
-      if(subEl && !content.heroSub && (c.hubTagline||'').trim()) subEl.textContent=c.hubTagline.trim();
-      render();
+    // Record the published baseline for the draftable parts.
+    published.catOrder = Array.isArray(c.catOrder) ? c.catOrder.slice() : [];
+    published.content = c.content || {};
+    // Apply to the live view only when there's no local draft being worked on.
+    if(!dirty && !editingText){
+      catOrder = published.catOrder.slice();
+      content = Object.assign({}, published.content);
+      applyContentText(); render();
     }
     maybeShowAnnouncement();
   }
@@ -670,15 +767,39 @@
     const rest=present.filter(k=>!inOrder.includes(k));
     return inOrder.concat(rest);
   }
-  function moveCat(key,dir){
-    if(!isAdmin)return;
+  let dragKey=null;
+  // All category keys in their current display order (from every site, so order
+  // is stable regardless of the search filter).
+  function allCatKeysOrdered(){
     const keys=[]; const seen=new Set();
     sites.forEach(s=>{ const k=(s.category||'').trim(); if(!seen.has(k)){ seen.add(k); keys.push(k); } });
-    const ordered=orderedCatKeys(keys);
+    return orderedCatKeys(keys);
+  }
+  function moveCat(key,dir){
+    if(!adminActive())return;
+    const ordered=allCatKeysOrdered();
     const i=ordered.indexOf(key), j=i+dir;
     if(i<0||j<0||j>=ordered.length)return;
     const t=ordered[i]; ordered[i]=ordered[j]; ordered[j]=t;
-    catOrder=ordered; render(); saveConfigPartial({catOrder});
+    catOrder=ordered; stage();
+  }
+  function reorderCats(from,to){
+    if(!adminActive())return;
+    const keys=allCatKeysOrdered();
+    const fi=keys.indexOf(from), ti=keys.indexOf(to);
+    if(fi<0||ti<0||fi===ti)return;
+    keys.splice(ti,0,keys.splice(fi,1)[0]);
+    catOrder=keys; stage();
+  }
+  function renameCat(key){
+    if(!adminActive())return;
+    const next=prompt('Rename category "'+(key||'Uncategorized')+'" to: (leave blank to make it uncategorized)', key);
+    if(next===null)return;
+    const nn=next.trim();
+    if(nn===key)return;
+    sites.forEach(s=>{ if((s.category||'').trim()===key) s.category=nn; });
+    catOrder=allCatKeysOrdered().map(k=>k===key?nn:k);
+    stage();
   }
 
   // ── Inline page-text editing ─────────────────────────────────────────────
@@ -697,11 +818,18 @@
     document.getElementById('edit-bar').style.display='none';
     document.getElementById('edit-text-btn').textContent='Edit text';
   }
-  function cancelEditText(){ endEditText(); applyHubConfig(); }
+  function cancelEditText(){ endEditText(); applyContentText(); }
   function saveText(){
-    const content={};
-    document.querySelectorAll('[data-edit]').forEach(el=>{ const v=el.innerText.trim(); if(v) content[el.getAttribute('data-edit')]=v; });
-    endEditText(); saveConfigPartial({content});
+    const next={};
+    document.querySelectorAll('[data-edit]').forEach(el=>{ const v=el.innerText.trim(); const k=el.getAttribute('data-edit'); if(v && v!==(textDefaults[k]||'')) next[k]=v; });
+    content=next; endEditText(); stage();
+  }
+  // Apply page-text overrides (or restore defaults) to every [data-edit] element.
+  function applyContentText(){
+    document.querySelectorAll('[data-edit]').forEach(el=>{ const k=el.getAttribute('data-edit'); el.textContent = (content[k]!=null && content[k]!=='') ? content[k] : (textDefaults[k]||el.textContent); });
+    const c=window.APP_CONFIG||{};
+    const subEl=document.querySelector('.hub-sub');
+    if(subEl && !(content.heroSub) && (c.hubTagline||'').trim()) subEl.textContent=c.hubTagline.trim();
   }
   function maybeShowAnnouncement(){
     const c=window.APP_CONFIG||{};
@@ -715,6 +843,8 @@
   function closeAnnouncement(){ const back=document.getElementById('ann-back'); if(back) back.classList.remove('show'); if(window._annVer) LS.set('aria_ann_seen', window._annVer); }
 
   // ── Boot ───────────────────────────────────────────────────────────────
+  // Capture the original page text so we can restore defaults on discard.
+  document.querySelectorAll('[data-edit]').forEach(el=>{ textDefaults[el.getAttribute('data-edit')]=el.textContent.trim(); });
   document.addEventListener('keydown',e=>{ if(e.key==='Escape'){ closeModal(); closeLogin(); } });
   (function(){ var ic=document.getElementById('theme-ic'); if(ic) ic.innerHTML=(document.documentElement.getAttribute('data-theme')==='dark')?MOON:SUN; })();
   // scroll-reveal
