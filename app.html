@@ -498,7 +498,12 @@
           <input id="adm-accent" type="color" value="#cc7a3a" title="Accent color" style="width:46px;height:38px;border:1px solid var(--border-md);border-radius:10px;background:var(--bg-input);cursor:pointer" />
         </div>
 
-        <button class="btn primary full" id="adm-save" onclick="saveAdminConfig()" style="margin-top:12px">Save changes</button>
+        <div id="adm-status" style="display:none;margin-top:12px;background:var(--accent-soft);border:1px solid rgba(204,122,58,0.25);color:var(--accent);border-radius:10px;padding:8px 11px;font-size:12px">Previewing your changes in this tab only — push to apply them for everyone, or discard to revert.</div>
+        <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+          <button class="btn" style="flex:1" onclick="previewAdminConfig()">Preview</button>
+          <button class="btn" id="adm-discard" style="flex:1;display:none" onclick="discardAdminPreview()">Discard</button>
+          <button class="btn primary" id="adm-save" style="flex:1" onclick="saveAdminConfig()">Push live</button>
+        </div>
       </div>
       <div class="sp-divider" id="admin-divider" style="display:none"></div>
 
@@ -1163,24 +1168,28 @@ function toggleTheme(){ try{ LS.set('aria_theme_choice','1'); }catch(_){} applyT
 // ── Admin-controlled app config (model, announcement, brand, theme) ──
 // Applied to EVERY user; only admins can edit it (see the Admin controls in Settings).
 window.APP_CONFIG = {};
+let admPreviewOn=false, admPreview=null;   // local, unsaved preview of admin changes
 function isAdminEmail(email){ return ADMIN_EMAILS.includes((email||'').toLowerCase()); }
-window.onAriaConfig = function(cfg){ window.APP_CONFIG = cfg || {}; applyAppConfig(); };
+// What's actually applied to THIS session: live config, plus the admin's preview overrides.
+function effectiveConfig(){ return admPreviewOn ? Object.assign({}, window.APP_CONFIG||{}, admPreview||{}) : (window.APP_CONFIG||{}); }
+window.onAriaConfig = function(cfg){ window.APP_CONFIG = cfg || {}; if(!admPreviewOn) applyAppConfig(); updateAdminBar(); };
 function applyAppConfig(){
-  const c = window.APP_CONFIG || {};
+  const c = effectiveConfig();
   const name = (c.appName||'').trim() || 'ARIA';
   document.title = name;
   const ln=document.getElementById('logo-name'); if(ln) ln.textContent=name;
   const model=(c.model||'').trim() || 'glm-4.6';
   document.querySelectorAll('.js-model-badge').forEach(el=>{ el.textContent=model.toUpperCase(); });
   if(c.accent) document.documentElement.style.setProperty('--accent', c.accent);
+  else document.documentElement.style.removeProperty('--accent');
   if(c.themeDefault && !LS.get('aria_theme_choice')) applyTheme(c.themeDefault==='dark'?'dark':'light');
-  applyLockedPrompt();
-  fillAdminForm();
-  maybeShowAnnouncement();
+  applyLockedPrompt(c);
+  if(!admPreviewOn) fillAdminForm();   // don't overwrite the form while previewing
+  maybeShowAnnouncement(c, admPreviewOn);
 }
 // Enforce the admin's locked system prompt for everyone (read-only when locked).
-function applyLockedPrompt(){
-  const c=window.APP_CONFIG||{};
+function applyLockedPrompt(c){
+  c = c || effectiveConfig();
   const sys=document.getElementById('sys-p'); const note=document.getElementById('sys-lock-note');
   const locked=!!c.sysLocked && !!(c.sysPrompt||'').trim();
   if(sys){
@@ -1203,11 +1212,10 @@ function fillAdminForm(){
   const annE=document.getElementById('adm-ann-on'); if(annE) annE.checked=!!c.annEnabled;
   const sysL=document.getElementById('adm-sys-lock'); if(sysL) sysL.checked=!!c.sysLocked;
 }
-function saveAdminConfig(){
-  if(!(window.ARIA_FB&&window.ARIA_FB.configured)){ showToast('Not connected.'); return; }
-  const prev=window.APP_CONFIG||{};
+// Read the admin form into a config object (shared by Preview and Push).
+function readAdminForm(){
   const g=(id)=>{ const el=document.getElementById(id); return el?el.value:''; };
-  const data={
+  return {
     model:(g('adm-model')||'').trim()||'glm-4.6',
     appName:(g('adm-appname')||'').trim()||'ARIA',
     hubName:(g('adm-hubname')||'').trim()||'Cryptic Hub',
@@ -1219,21 +1227,42 @@ function saveAdminConfig(){
     sysPrompt:(g('adm-sys')||'').trim(),
     sysLocked:!!document.getElementById('adm-sys-lock').checked,
   };
+}
+// Preview the form's values in THIS tab only — nothing is saved for other users yet.
+function previewAdminConfig(){
+  admPreview=readAdminForm(); admPreviewOn=true;
+  applyAppConfig(); updateAdminBar();
+  showToast('Previewing your changes — not live until you push.');
+}
+// Throw away the preview and revert to what's currently live.
+function discardAdminPreview(){
+  admPreviewOn=false; admPreview=null;
+  applyAppConfig(); fillAdminForm(); updateAdminBar();
+}
+function updateAdminBar(){
+  const note=document.getElementById('adm-status'); if(note) note.style.display=admPreviewOn?'block':'none';
+  const disc=document.getElementById('adm-discard'); if(disc) disc.style.display=admPreviewOn?'inline-flex':'none';
+}
+// Push live: write the config to Firestore for everyone.
+function saveAdminConfig(){
+  if(!(window.ARIA_FB&&window.ARIA_FB.configured)){ showToast('Not connected.'); return; }
+  const prev=window.APP_CONFIG||{};
+  const data=readAdminForm();
   // Bump the announcement version when the text changes or it's newly turned on, so users see it again.
   data.annUpdated = (data.annText!==(prev.annText||'') || (data.annEnabled && !prev.annEnabled)) ? Date.now() : (prev.annUpdated||0);
-  const btn=document.getElementById('adm-save'); if(btn){ btn.disabled=true; btn.textContent='Saving…'; }
+  const btn=document.getElementById('adm-save'); if(btn){ btn.disabled=true; btn.textContent='Publishing…'; }
   window.ARIA_FB.saveConfig(data)
-    .then(()=>{ if(btn){ btn.textContent='Saved ✓'; setTimeout(()=>{ btn.textContent='Save changes'; btn.disabled=false; },1200); } })
-    .catch(e=>{ if(btn){ btn.textContent='Save changes'; btn.disabled=false; } showToast('Save failed: '+(e&&e.message||e)); });
+    .then(()=>{ admPreviewOn=false; admPreview=null; updateAdminBar(); if(btn){ btn.textContent='Pushed ✓'; setTimeout(()=>{ btn.textContent='Push live'; btn.disabled=false; },1200); } })
+    .catch(e=>{ if(btn){ btn.textContent='Push live'; btn.disabled=false; } showToast('Publish failed: '+(e&&e.message||e)); });
 }
-function maybeShowAnnouncement(){
-  const c=window.APP_CONFIG||{};
+function maybeShowAnnouncement(c, force){
+  c = c || effectiveConfig();
   const back=document.getElementById('ann-back'); if(!back) return;
   if(!c.annEnabled || !(c.annText||'').trim()){ back.style.display='none'; return; }
   const ver=String(c.annUpdated||0);
-  if(LS.get('aria_ann_seen')===ver){ back.style.display='none'; return; }
+  if(!force && LS.get('aria_ann_seen')===ver){ back.style.display='none'; return; }
   document.getElementById('ann-body').textContent=c.annText;
-  back.style.display='flex'; window._annVer=ver;
+  back.style.display='flex'; window._annVer = force ? null : ver;  // preview close shouldn't mark a real version seen
 }
 function closeAnnouncement(){ const back=document.getElementById('ann-back'); if(back) back.style.display='none'; if(window._annVer) LS.set('aria_ann_seen',window._annVer); }
 
@@ -1253,7 +1282,7 @@ function hasKeyForProvider(){ return !!ownKey() || serverHasKey(); }
 //  PROVIDER + MODEL
 // ════════════════════════════════════════════════
 // Default GLM-4.6 over Ollama Cloud; admins can change the model for everyone via config.
-function activeModel(){ const m=(window.APP_CONFIG&&window.APP_CONFIG.model)||'glm-4.6'; return String(m).trim()||'glm-4.6'; }
+function activeModel(){ const m=(effectiveConfig().model)||'glm-4.6'; return String(m).trim()||'glm-4.6'; }
 
 function endpoint(target,path){ return target.base+path; }
 
