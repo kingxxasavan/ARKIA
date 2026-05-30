@@ -73,9 +73,9 @@ app.get('/api/search', async (req, res) => {
 
 // ── Admin-locked system prompt (server-side enforcement) ────────────────────
 // The directory/config doc is public-read in Firestore rules, so the server can
-// read it over the REST API with the public web key. Cached briefly.
-const FB_PROJECT = (process.env.FIREBASE_PROJECT || 'arikia').trim();
-const FB_API_KEY = (process.env.FIREBASE_API_KEY || '').trim();
+// read it over the public REST URL (.json) — Realtime Database public reads need
+// no key, so unlike Firestore this works from any server. Cached briefly.
+const FB_DB_URL = (process.env.FIREBASE_DB_URL || 'https://arikia-default-rtdb.firebaseio.com').trim().replace(/\/$/, '');
 
 // Primary, always-reliable enforcement: host env vars. Set LOCK_SYSTEM_PROMPT=1
 // and LOCKED_SYSTEM_PROMPT="..." in your server environment.
@@ -89,19 +89,14 @@ let _cfgCache = { at: 0, data: null };
 async function getAppConfig() {
   const env = envLock();
   if (env) return env;
-  // Best-effort: read the panel-controlled config from Firestore. Only works if
-  // the project's API key is unrestricted for server use (set FIREBASE_API_KEY).
-  if (!FB_API_KEY) return null;
+  // Best-effort: read the panel-controlled config from Realtime Database.
+  if (!FB_DB_URL) return null;
   if (Date.now() - _cfgCache.at < 30000) return _cfgCache.data;
   try {
-    const url = `https://firestore.googleapis.com/v1/projects/${FB_PROJECT}/databases/(default)/documents/config/app?key=${FB_API_KEY}`;
-    const r = await fetch(url, { signal: AbortSignal.timeout(8000) });
+    const r = await fetch(`${FB_DB_URL}/config/app.json`, { signal: AbortSignal.timeout(8000) });
     if (!r.ok) throw new Error('config ' + r.status);
-    const f = (await r.json()).fields || {};
-    _cfgCache = { at: Date.now(), data: {
-      sysLocked: !!(f.sysLocked && f.sysLocked.booleanValue),
-      sysPrompt: (f.sysPrompt && f.sysPrompt.stringValue) || '',
-    } };
+    const j = await r.json();   // the config object directly, or null
+    _cfgCache = { at: Date.now(), data: j ? { sysLocked: !!j.sysLocked, sysPrompt: j.sysPrompt || '' } : null };
   } catch (e) { _cfgCache = { at: Date.now(), data: _cfgCache.data }; }
   return _cfgCache.data;
 }

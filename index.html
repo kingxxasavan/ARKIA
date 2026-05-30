@@ -876,12 +876,14 @@
   import { getAuth, onAuthStateChanged, signInWithEmailAndPassword,
            signOut, GoogleAuthProvider, signInWithPopup, setPersistence, browserLocalPersistence }
            from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
-  import { initializeFirestore, doc, getDoc, setDoc, onSnapshot }
-           from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+  import { getDatabase, ref, get, set, update, onValue }
+           from "https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyC3e8T0nsoyey0EA9ozQbt9o5THI4pGzng",
     authDomain: "arikia.firebaseapp.com",
+    // ⬇️ Replace with YOUR Realtime Database URL from Firebase Console → Realtime Database (top of page).
+    databaseURL: "https://arikia-default-rtdb.firebaseio.com",
     projectId: "arikia",
     storageBucket: "arikia.firebasestorage.app",
     messagingSenderId: "472996212961",
@@ -892,33 +894,36 @@
   try {
     const fbApp = initializeApp(firebaseConfig);
     const auth = getAuth(fbApp);
-    // Auto-detect long-polling: some networks/proxies block Firestore's streaming
-    // transport, which makes reads/writes hang forever. This falls back cleanly.
-    const db = initializeFirestore(fbApp, { experimentalAutoDetectLongPolling: true });
+    const db = getDatabase(fbApp);
+    const clean = (o) => JSON.parse(JSON.stringify(o));   // RTDB rejects undefined values
+    const asArr = (v) => Array.isArray(v) ? v : (v && typeof v === 'object' ? Object.values(v) : []);
     try { await setPersistence(auth, browserLocalPersistence); } catch (e) {}
 
-    const hubRef = doc(db, 'hub', 'main');
-    const cfgRef = doc(db, 'config', 'app');
+    const hubRef = ref(db, 'hub/main');
+    const cfgRef = ref(db, 'config/app');
 
     window.HUB_FB = {
       configured: true,
       signInEmail: (e, p) => signInWithEmailAndPassword(auth, e, p),
       signInGoogle: () => signInWithPopup(auth, new GoogleAuthProvider()),
       signOut: () => signOut(auth),
-      saveSites: (sites) => setDoc(hubRef, { sites, updated: Date.now() }),
-      saveConfig: (data) => setDoc(cfgRef, { ...data, updated: Date.now() }, { merge: true }),
+      saveSites: (sites) => set(hubRef, clean({ sites: sites || [], updated: Date.now() })),
+      saveConfig: (data) => update(cfgRef, clean({ ...data, updated: Date.now() })),
     };
 
+    // Track real connection state (RTDB tells us via the special .info/connected node).
+    onValue(ref(db, '.info/connected'), (s) => { window.__hubOnline = (s.val() === true); });
+
     // Live, public, read-only directory for every visitor.
-    onSnapshot(hubRef, (snap) => {
-      if (!snap.metadata.fromCache) { window.__hubOnline = true; window.__hubError = null; } // a real server response arrived
-      const data = snap.exists() ? snap.data() : {};
-      if (window.onHubSites) window.onHubSites(Array.isArray(data.sites) ? data.sites : []);
+    onValue(hubRef, (snap) => {
+      window.__hubError = null;
+      const data = snap.exists() ? snap.val() : {};
+      if (window.onHubSites) window.onHubSites(asArr(data.sites));
     }, (err) => { window.__hubError = (err.code || err.message || String(err)); console.error('Hub read failed:', err); });
 
     // Live, public, read-only app config (brand, tagline, theme, announcement) set by admins.
-    onSnapshot(cfgRef, (snap) => {
-      if (window.onHubConfig) window.onHubConfig(snap.exists() ? snap.data() : {});
+    onValue(cfgRef, (snap) => {
+      if (window.onHubConfig) window.onHubConfig(snap.exists() ? snap.val() : {});
     }, (err) => { window.__hubError = (err.code || err.message || String(err)); console.error('Config read failed:', err); });
 
     onAuthStateChanged(auth, (user) => { if (window.onHubUser) window.onHubUser(user); });

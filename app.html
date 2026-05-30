@@ -1682,17 +1682,19 @@ async function ddgSearch(query){
 
 </script>
 
-<!-- Firebase: login/signup + per-user memory & chats (Firestore). Config is public by design. -->
+<!-- Firebase: login/signup + per-user memory & chats (Realtime Database). Config is public by design. -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword,
          signOut, GoogleAuthProvider, signInWithPopup, setPersistence, browserLocalPersistence,
          updateProfile, sendEmailVerification } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
-import { initializeFirestore, doc, getDoc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+import { getDatabase, ref, get, set, update, onValue } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyC3e8T0nsoyey0EA9ozQbt9o5THI4pGzng",
   authDomain: "arikia.firebaseapp.com",
+  // ⬇️ Replace with YOUR Realtime Database URL from Firebase Console → Realtime Database (top of page).
+  databaseURL: "https://arikia-default-rtdb.firebaseio.com",
   projectId: "arikia",
   storageBucket: "arikia.firebasestorage.app",
   messagingSenderId: "472996212961",
@@ -1703,9 +1705,9 @@ const firebaseConfig = {
 try {
   const fbApp = initializeApp(firebaseConfig);
   const auth = getAuth(fbApp);
-  // Auto-detect long-polling so Firestore still works on networks/proxies that
-  // block its default streaming transport (otherwise reads/writes hang).
-  const db = initializeFirestore(fbApp, { experimentalAutoDetectLongPolling: true });
+  const db = getDatabase(fbApp);
+  const clean = (o) => JSON.parse(JSON.stringify(o));   // RTDB rejects undefined values
+  const asArr = (v) => Array.isArray(v) ? v : (v && typeof v === 'object' ? Object.values(v) : []);
   try { await setPersistence(auth, browserLocalPersistence); } catch (e) {}
   window.ARIA_FB = {
     configured: true,
@@ -1716,19 +1718,19 @@ try {
     updateName: (name) => updateProfile(auth.currentUser, { displayName: name }),
     sendVerification: () => auth.currentUser ? sendEmailVerification(auth.currentUser) : Promise.reject(new Error('no user')),
     reloadUser: async () => { if(auth.currentUser){ await auth.currentUser.reload(); return auth.currentUser; } return null; },
-    loadMemory: async (uid) => { const s = await getDoc(doc(db, 'memories', uid)); const d = s.exists() ? s.data() : {}; return { facts: d.facts || [], learned: d.learned || [], notes: d.notes || [] }; },
-    saveMemory: async (uid, data) => { await setDoc(doc(db, 'memories', uid), { facts: (data && data.facts) || [], learned: (data && data.learned) || [], notes: (data && data.notes) || [], updated: Date.now() }); },
-    loadChats: async (uid) => { const s = await getDoc(doc(db, 'chats', uid)); return s.exists() ? (s.data().convs || []) : []; },
-    saveChats: async (uid, convs) => { await setDoc(doc(db, 'chats', uid), { convs, updated: Date.now() }); },
-    loadUsage: async (uid) => { const s = await getDoc(doc(db, 'usage', uid)); return s.exists() ? s.data() : null; },
-    saveUsage: async (uid, data) => { await setDoc(doc(db, 'usage', uid), data); },
-    loadLimit: async (uid) => { try{ const s = await getDoc(doc(db, 'limits', uid)); return s.exists() ? s.data() : null; }catch(e){ return null; } },
-    loadConfig: async () => { try{ const s = await getDoc(doc(db, 'config', 'app')); return s.exists() ? s.data() : null; }catch(e){ return null; } },
-    saveConfig: (data) => setDoc(doc(db, 'config', 'app'), { ...data, updated: Date.now() }, { merge: true }),
+    loadMemory: async (uid) => { const s = await get(ref(db, 'memories/' + uid)); const d = s.exists() ? s.val() : {}; return { facts: asArr(d.facts), learned: asArr(d.learned), notes: asArr(d.notes) }; },
+    saveMemory: async (uid, data) => { await set(ref(db, 'memories/' + uid), clean({ facts: (data && data.facts) || [], learned: (data && data.learned) || [], notes: (data && data.notes) || [], updated: Date.now() })); },
+    loadChats: async (uid) => { const s = await get(ref(db, 'chats/' + uid)); return s.exists() ? asArr(s.val().convs) : []; },
+    saveChats: async (uid, convs) => { await set(ref(db, 'chats/' + uid), clean({ convs: convs || [], updated: Date.now() })); },
+    loadUsage: async (uid) => { const s = await get(ref(db, 'usage/' + uid)); return s.exists() ? s.val() : null; },
+    saveUsage: async (uid, data) => { await set(ref(db, 'usage/' + uid), clean(data)); },
+    loadLimit: async (uid) => { try{ const s = await get(ref(db, 'limits/' + uid)); return s.exists() ? s.val() : null; }catch(e){ return null; } },
+    loadConfig: async () => { try{ const s = await get(ref(db, 'config/app')); return s.exists() ? s.val() : null; }catch(e){ return null; } },
+    saveConfig: (data) => update(ref(db, 'config/app'), clean({ ...data, updated: Date.now() })),
   };
   // Live app config (admin-controlled): model, announcement, brand, theme — applied to every user.
-  onSnapshot(doc(db, 'config', 'app'),
-    (s) => { if (window.onAriaConfig) window.onAriaConfig(s.exists() ? s.data() : {}); },
+  onValue(ref(db, 'config/app'),
+    (s) => { if (window.onAriaConfig) window.onAriaConfig(s.exists() ? s.val() : {}); },
     (e) => console.error('Config read failed:', e));
   onAuthStateChanged(auth, (user) => { if (window.onAriaUser) window.onAriaUser(user); });
 } catch (e) {
