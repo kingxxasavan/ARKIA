@@ -405,6 +405,9 @@
     }
     const pushBtn=document.getElementById('push-btn');
     const reset=()=>{ if(pushBtn){ pushBtn.disabled=false; pushBtn.textContent='Push live'; } };
+    if(navigator.onLine===false){
+      alert('You appear to be offline — your draft is saved. Reconnect and try again.'); return;
+    }
     if(pushBtn){ pushBtn.disabled=true; pushBtn.textContent='Publishing…'; }
     // Drop any undefined/function values — Firestore rejects them (sometimes synchronously, which would hang the button).
     const cleanSites = JSON.parse(JSON.stringify(sites));
@@ -412,7 +415,7 @@
     let done=false;
     const finish=(fn)=>{ if(done) return; done=true; clearTimeout(watchdog); fn(); };
     // Never leave the button stuck on "Publishing…" if the request hangs (e.g. offline).
-    const watchdog=setTimeout(()=>finish(()=>{ reset(); alert('Publishing timed out — check your connection and that you’re signed in as an admin, then try again. Your draft is safe.'); }), 20000);
+    const watchdog=setTimeout(()=>finish(()=>{ reset(); alert('Publishing timed out — your draft is safe.\n\n'+(window.__hubOnline ? 'The database connection dropped; try again in a moment.' : 'The page can’t reach Firestore. This is usually an ad-blocker/VPN/strict network blocking firestore.googleapis.com, or App Check — try another network or disable extensions.')); }), 20000);
     // Wrap in Promise.resolve().then(...) so a synchronous throw becomes a rejection we can catch.
     Promise.resolve()
       .then(()=>Promise.all([ fb.saveSites(cleanSites), fb.saveConfig(cleanCfg) ]))
@@ -770,11 +773,6 @@
     }
     maybeShowAnnouncement();
   }
-  // Merge a partial change into the shared config (admins only).
-  function saveConfigPartial(obj){
-    if(!(isAdmin && window.HUB_FB && window.HUB_FB.configured)) return;
-    window.HUB_FB.saveConfig(obj).catch(e=>{ console.error(e); alert('Could not save: '+(e&&e.message||e)); });
-  }
 
   // ── Category order ───────────────────────────────────────────────────────
   function orderedCatKeys(present){
@@ -878,7 +876,7 @@
   import { getAuth, onAuthStateChanged, signInWithEmailAndPassword,
            signOut, GoogleAuthProvider, signInWithPopup, setPersistence, browserLocalPersistence }
            from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
-  import { getFirestore, doc, getDoc, setDoc, onSnapshot }
+  import { initializeFirestore, doc, getDoc, setDoc, onSnapshot }
            from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
   const firebaseConfig = {
@@ -894,7 +892,9 @@
   try {
     const fbApp = initializeApp(firebaseConfig);
     const auth = getAuth(fbApp);
-    const db = getFirestore(fbApp);
+    // Auto-detect long-polling: some networks/proxies block Firestore's streaming
+    // transport, which makes reads/writes hang forever. This falls back cleanly.
+    const db = initializeFirestore(fbApp, { experimentalAutoDetectLongPolling: true });
     try { await setPersistence(auth, browserLocalPersistence); } catch (e) {}
 
     const hubRef = doc(db, 'hub', 'main');
@@ -911,6 +911,7 @@
 
     // Live, public, read-only directory for every visitor.
     onSnapshot(hubRef, (snap) => {
+      if (!snap.metadata.fromCache) window.__hubOnline = true; // a real server response arrived
       const data = snap.exists() ? snap.data() : {};
       if (window.onHubSites) window.onHubSites(Array.isArray(data.sites) ? data.sites : []);
     }, (err) => console.error('Hub read failed:', err));

@@ -1688,7 +1688,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/fireba
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword,
          signOut, GoogleAuthProvider, signInWithPopup, setPersistence, browserLocalPersistence,
          updateProfile, sendEmailVerification } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
-import { getFirestore, doc, getDoc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+import { initializeFirestore, doc, getDoc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyC3e8T0nsoyey0EA9ozQbt9o5THI4pGzng",
@@ -1703,7 +1703,9 @@ const firebaseConfig = {
 try {
   const fbApp = initializeApp(firebaseConfig);
   const auth = getAuth(fbApp);
-  const db = getFirestore(fbApp);
+  // Auto-detect long-polling so Firestore still works on networks/proxies that
+  // block its default streaming transport (otherwise reads/writes hang).
+  const db = initializeFirestore(fbApp, { experimentalAutoDetectLongPolling: true });
   try { await setPersistence(auth, browserLocalPersistence); } catch (e) {}
   window.ARIA_FB = {
     configured: true,
