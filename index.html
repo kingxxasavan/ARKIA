@@ -415,7 +415,7 @@
     let done=false;
     const finish=(fn)=>{ if(done) return; done=true; clearTimeout(watchdog); fn(); };
     // Never leave the button stuck on "Publishing…" if the request hangs (e.g. offline).
-    const watchdog=setTimeout(()=>finish(()=>{ reset(); alert('Publishing timed out — your draft is safe.\n\n'+(window.__hubOnline ? 'The database connection dropped; try again in a moment.' : 'The page can’t reach Firestore. This is usually an ad-blocker/VPN/strict network blocking firestore.googleapis.com, or App Check — try another network or disable extensions.')); }), 20000);
+    const watchdog=setTimeout(()=>finish(()=>{ reset(); alert('Publishing timed out — your draft is safe.\n\n'+(window.__hubOnline ? 'The database connection dropped; try again in a moment.' : 'The page can’t reach Firestore.')+(window.__hubError ? '\n\nFirestore error: '+window.__hubError : '\n\nLikely: Firestore not enabled, rules block access, the API key is restricted, or App Check is enforced.')); }), 20000);
     // Wrap in Promise.resolve().then(...) so a synchronous throw becomes a rejection we can catch.
     Promise.resolve()
       .then(()=>Promise.all([ fb.saveSites(cleanSites), fb.saveConfig(cleanCfg) ]))
@@ -911,15 +911,15 @@
 
     // Live, public, read-only directory for every visitor.
     onSnapshot(hubRef, (snap) => {
-      if (!snap.metadata.fromCache) window.__hubOnline = true; // a real server response arrived
+      if (!snap.metadata.fromCache) { window.__hubOnline = true; window.__hubError = null; } // a real server response arrived
       const data = snap.exists() ? snap.data() : {};
       if (window.onHubSites) window.onHubSites(Array.isArray(data.sites) ? data.sites : []);
-    }, (err) => console.error('Hub read failed:', err));
+    }, (err) => { window.__hubError = (err.code || err.message || String(err)); console.error('Hub read failed:', err); });
 
     // Live, public, read-only app config (brand, tagline, theme, announcement) set by admins.
     onSnapshot(cfgRef, (snap) => {
       if (window.onHubConfig) window.onHubConfig(snap.exists() ? snap.data() : {});
-    }, (err) => console.error('Config read failed:', err));
+    }, (err) => { window.__hubError = (err.code || err.message || String(err)); console.error('Config read failed:', err); });
 
     onAuthStateChanged(auth, (user) => { if (window.onHubUser) window.onHubUser(user); });
   } catch (e) {
